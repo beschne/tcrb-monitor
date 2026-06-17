@@ -2,10 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Git
-
-All commits use only as author. Do not add co-author lines or any mention of Claude in commits, commit messages, or files.
-
 ## What this project does
 
 Monitors T Coronae Borealis ("Blaze Star") for a nova eruption by polling AAVSO WebObs hourly. When brightness crosses configurable thresholds it sends a macOS notification and/or a Signal message. A local CSV accumulates all observations; a JSON file tracks the current alert level to prevent duplicate alerts.
@@ -15,7 +11,6 @@ Monitors T Coronae Borealis ("Blaze Star") for a nova eruption by polling AAVSO 
 | File | Purpose |
 |------|---------|
 | `tcrb_monitor.py` | **Current version.** Standard library only (Python 3.9+). Alerts via macOS notification + Signal. |
-| `tcrb_monitor_v1.py` | Older version with SMTP email instead of Signal. Keep for reference. |
 | `plot_tcrb_csv.py` | Plots `tcrb_history.csv` → PNG. Requires `matplotlib` (`.venv/` in this folder). |
 | `de.agorion.tcrb.plist` | launchd job — fires `tcrb_monitor.py` hourly from `~/Scripts/tcrb/`. |
 
@@ -79,3 +74,7 @@ signal-cli -u +49NUMMER listGroups         # get base64 group ID for SIGNAL_GROU
 ```
 
 Configure `SIGNAL_ENABLED`, `SIGNAL_CLI`, `SIGNAL_ACCOUNT`, and either `SIGNAL_GROUP_ID` or `SIGNAL_RECIPIENTS` at the top of `tcrb_monitor.py`.
+
+## Git
+
+Do not add co-author lines or any mention of Claude in commits, commit messages, or files.
