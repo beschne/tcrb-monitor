@@ -1,0 +1,18 @@
+# Secrets and local config
+config.py
+de.agorion.tcrb.plist
+
+# Runtime data
+tcrb_history.csv
+tcrb_state.json
+
+# Generated output
+tcrb_lichtkurve.png
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/

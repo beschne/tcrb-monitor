@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Eindeutiges Label in umgekehrter Domain-Notation -->
+    <key>Label</key>
+    <string>de.agorion.tcrb</string>
+
+    <!-- Was ausgefuehrt wird. Pfade anpassen!
+         python3 pruefen mit:  which python3   (Apple-System-Python: /usr/bin/python3) -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/python3</string>
+        <string>/Users/USERNAME/Scripts/tcrb/tcrb_monitor.py</string>
+    </array>
+
+    <!-- Arbeitsverzeichnis: hier landen tcrb_history.csv und tcrb_state.json -->
+    <key>WorkingDirectory</key>
+    <string>/Users/USERNAME/Scripts/tcrb</string>
+
+    <!-- Stuendlich zur vollen Stunde. launchd holt einen verpassten Lauf
+         nach, sobald der Mac aus dem Ruhezustand erwacht. -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!-- Einmal direkt beim Laden ausfuehren (gut zum Testen; spaeter optional). -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Logs zum Nachsehen bei Problemen -->
+    <key>StandardOutPath</key>
+    <string>/Users/USERNAME/Scripts/tcrb/tcrb.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/USERNAME/Scripts/tcrb/tcrb.err.log</string>
+
+    <!-- launchd gibt nur einen minimalen PATH vor. osascript (fuer die
+         macOS-Mitteilung) liegt in /usr/bin. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+</dict>
+</plist>
