@@ -64,8 +64,7 @@ In `config.py` (Vorlage: `config.sample.py`) zu füllen:
 - `SIGNAL_CLI` — Pfad prüfen mit `which signal-cli` (Apple Silicon meist `/opt/homebrew/bin/signal-cli`)
 - `SIGNAL_ACCOUNT` — deine verknüpfte Nummer
 - Entweder `SIGNAL_GROUP_ID` (hat Vorrang) oder `SIGNAL_RECIPIENTS`
-
-`SIGNAL_ENABLED` steht im Skriptkopf und ist standardmäßig `True`; fehlt `config.py`, deaktiviert sich Signal automatisch.
+- `SIGNAL_ENABLED` steht im Skriptkopf und ist standardmäßig `True`; fehlt `config.py`, deaktiviert sich Signal automatisch.
 
 Zwei Dinge noch: Der signal-cli-Pfad muss absolut sein, da launchd nur einen minimalen PATH kennt. Und signal-cli schreibt seinen Zustand nach `~/.local/share/signal-cli` — da der LaunchAgent unter deinem User läuft, passt das ohne Zusatzkonfiguration.
 
