@@ -82,7 +82,11 @@ for band in ["Vis.", "V", "TG"]:
 ax.invert_yaxis()
 ax.set_ylabel("Helligkeit [mag]")
 ax.set_xlabel("Datum / Uhrzeit (UT)")
-ax.set_title("T CrB \u2013 Visuelle Lichtkurve (AAVSO)\n14.\u201315. Juni 2026 \u00b7 Vis. + V + TG",
+all_times = [t for b in PLOT_BANDS for t in series[b]["t"]]
+_t0, _t1 = min(all_times), max(all_times)
+_date_fmt = "%d. %b %Y"
+_span = _t0.strftime(_date_fmt) if _t0.date() == _t1.date() else f"{_t0.strftime(_date_fmt)}\u2013{_t1.strftime(_date_fmt)}"
+ax.set_title(f"T CrB \u2013 Visuelle Lichtkurve (AAVSO)\n{_span} \u00b7 Vis. + V + TG",
              fontsize=13, pad=12)
 ax.grid(True, ls=":", color="#ccc", alpha=0.7)
 ax.legend(loc="upper left", frameon=True, framealpha=0.9, fontsize=10)

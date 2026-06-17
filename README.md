@@ -90,3 +90,4 @@ Das schickt eine klar als Test markierte Nachricht über alle aktiven Kanäle un
 ## Links
 
 - [T CrB aktuell – TheSkyLive](https://theskylive.com/sky/stars/hr-5958-star) — Live-Helligkeit und aktuelle Informationen zu T Coronae Borealis
+- [AAVSO Photometrie-Datenbanksuche](https://apps.aavso.org/v2/data/search/photometry/) — Rohdaten aller AAVSO-Beobachtungen durchsuchen
