@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-tcrb_monitor.py  --  Helligkeitsueberwachung von T CrB ("Blaze Star")
+tcrb_monitor.py  --  Brightness monitor for T CrB ("Blaze Star")
 
-Holt die juengsten Beobachtungen aus der AAVSO-WebObs-Datenbank, schreibt sie
-in eine lokale CSV-Historie und schlaegt Alarm, sobald die Helligkeit eine
-einstellbare Schwelle ueberschreitet (= Stern wird heller -> kleinere mag-Zahl).
+Fetches the latest observations from the AAVSO WebObs database, writes them
+to a local CSV history, and raises an alert when brightness crosses a
+configurable threshold (star gets brighter -> smaller mag number).
 
-Reine Standardbibliothek -- keine externen Pakete noetig. Getestet mit Python 3.9+.
+Standard library only -- no external packages needed. Tested with Python 3.9+.
 
-Gedacht fuer den taeglichen (oder stuendlichen) Aufruf via cron/launchd.
+Intended for daily (or hourly) invocation via cron/launchd.
 
-Quelle:  https://www.aavso.org/apps/webobs/results/   (oeffentlich, kein Login)
+Source:  https://www.aavso.org/apps/webobs/results/   (public, no login)
 AUID T CrB: 000-BBW-825
 
-Diese ist die Version 2 ohne Mail-Versand. Stattdessen Versand über Signal.
+This is version 2 without email delivery. Alerts sent via Signal instead.
 """
 
 import argparse
@@ -31,44 +31,44 @@ import urllib.parse
 import urllib.request
 
 # --------------------------------------------------------------------------
-# KONFIGURATION  (kann komplett per Kommandozeile/ENV ueberschrieben werden)
+# CONFIGURATION  (can be fully overridden via command line/ENV)
 # --------------------------------------------------------------------------
 STAR          = "T CrB"
-NUM_RESULTS   = 200          # wie viele juengste Beobachtungen abrufen
-OBS_TYPES     = "vis+ccd"    # visuelle + CCD/CMOS-Beobachtungen
+NUM_RESULTS   = 200          # how many recent observations to fetch
+OBS_TYPES     = "vis+ccd"    # visual + CCD/CMOS observations
 
-# Alarmschwellen (mag). Heller = kleinere Zahl. Ruhe von T CrB liegt bei ~10.
-WARN_MAG      = 8.0          # Fruehwarnung: ungewoehnlich hell, Auge drauf
-ERUPT_MAG     = 6.0          # Ausbruch sehr wahrscheinlich -> sofort losfahren
+# Alert thresholds (mag). Brighter = smaller number. T CrB quiescent at ~10.
+WARN_MAG      = 8.0          # early warning: unusually bright, keep an eye on it
+ERUPT_MAG     = 6.0          # eruption very likely -> head outside immediately
 
-# WICHTIG: Nur diese Baender fuer den Alarm auswerten.
-# T CrB ist ein symbiotischer Stern mit M-Riese -> im Infrarot (I, R) dauerhaft
-# hell (~6-7 mag), obwohl der Stern visuell in Ruhe bei ~10 mag steht. Wuerde man
-# alle Baender gleich behandeln, gaebe es staendig Fehlalarme. Fuer "wird mit
-# blossem Auge sichtbar" zaehlen visuelle und Johnson-V-Schaetzungen.
+# IMPORTANT: Only evaluate these bands for alerts.
+# T CrB is a symbiotic star with an M-giant -> in the infrared (I, R) permanently
+# bright (~6-7 mag), even though the star sits at ~10 mag visually at quiescence.
+# Treating all bands equally would cause constant false alarms. For "visible
+# to the naked eye", visual and Johnson-V estimates are what count.
 ALERT_BANDS   = {"Vis.", "V"}
 
-# Dateien (Vorgabe: neben dem Skript; passt zum Offline-Workflow)
+# Files (default: next to the script; works for offline workflow)
 BASE_DIR      = os.path.dirname(os.path.abspath(__file__))
 CSV_PATH      = os.path.join(BASE_DIR, "tcrb_history.csv")
 STATE_PATH    = os.path.join(BASE_DIR, "tcrb_state.json")
 
-# Benachrichtigung
-USE_MACOS_NOTIFY = True       # macOS-Mitteilung via osascript
+# Notification
+USE_MACOS_NOTIFY = True       # macOS notification via osascript
 
 # --- Signal via signal-cli ------------------------------------------------
-# Voraussetzung: signal-cli installiert und EINMALIG eingerichtet, z. B.
+# Prerequisite: signal-cli installed and set up ONCE, e.g.
 #   brew install signal-cli
-#   signal-cli link -n "TCrB-Monitor"      # QR mit dem Handy scannen
-# Eigene Gruppen-IDs (base64) auflisten mit:
-#   signal-cli -u +49NUMMER listGroups
+#   signal-cli link -n "TCrB-Monitor"      # scan QR with phone
+# List your group IDs (base64) with:
+#   signal-cli -u +1YOURNUMBER listGroups
 SIGNAL_ENABLED    = True
 SIGNAL_CLI        = "/opt/homebrew/bin/signal-cli"  # Apple Silicon; Intel: /usr/local/bin
-SIGNAL_ACCOUNT    = ""        # aus config.py laden
-SIGNAL_GROUP_ID   = ""        # base64-Gruppen-ID (Vorrang, falls gesetzt)
-SIGNAL_RECIPIENTS = []        # sonst: eine oder mehrere Nummern
+SIGNAL_ACCOUNT    = ""        # loaded from config.py
+SIGNAL_GROUP_ID   = ""        # base64 group ID (takes priority if set)
+SIGNAL_RECIPIENTS = []        # or: one or more phone numbers
 
-# Secrets aus config.py laden (nicht im Repo, siehe config.sample.py)
+# Load secrets from config.py (not in repo, see config.sample.py)
 try:
     import config as _cfg
     SIGNAL_CLI        = getattr(_cfg, "SIGNAL_CLI",        SIGNAL_CLI)
@@ -77,19 +77,19 @@ try:
     SIGNAL_RECIPIENTS = getattr(_cfg, "SIGNAL_RECIPIENTS", SIGNAL_RECIPIENTS)
 except ImportError:
     if SIGNAL_ENABLED:
-        print("Hinweis: config.py fehlt – Signal deaktiviert.", file=sys.stderr)
+        print("Note: config.py missing – Signal disabled.", file=sys.stderr)
     SIGNAL_ENABLED = False
 
-# AAVSO WebObs URL und User-Agent
+# AAVSO WebObs URL and User-Agent
 WEBOBS_URL = "https://www.aavso.org/apps/webobs/results/"
 USER_AGENT = "AGO-TCrB-Monitor/1.0 (Volkssternwarte Hochtaunus)"
 
 # --------------------------------------------------------------------------
-# Datenabruf + Parsing
+# Fetch + Parse
 # --------------------------------------------------------------------------
 def fetch_observations(star=STAR, num=NUM_RESULTS, obs_types=OBS_TYPES):
-    """Liefert eine Liste von dicts: jd, date, mag, band, observer, fainter_than."""
-    # obs_types nutzt '+' als Trennzeichen -> NICHT als %2B kodieren.
+    """Returns a list of dicts: jd, date, mag, band, observer, fainter_than."""
+    # obs_types uses '+' as separator -> do NOT encode as %2B.
     qs = (f"star={urllib.parse.quote_plus(star)}"
           f"&num_results={int(num)}"
           f"&obs_types={obs_types}")
@@ -99,12 +99,12 @@ def fetch_observations(star=STAR, num=NUM_RESULTS, obs_types=OBS_TYPES):
         with urllib.request.urlopen(req, timeout=45) as r:
             page = r.read().decode("utf-8", errors="replace")
     except (urllib.error.URLError, OSError) as e:
-        print(f"AAVSO-Abruf fehlgeschlagen: {e}", file=sys.stderr)
+        print(f"AAVSO fetch failed: {e}", file=sys.stderr)
         return []
 
     idx = page.find("Calendar Date")
     if idx < 0:
-        print("AAVSO-Seitenstruktur geaendert: Anker 'Calendar Date' fehlt.", file=sys.stderr)
+        print("AAVSO page structure changed: anchor 'Calendar Date' missing.", file=sys.stderr)
         return []
     seg = page[idx:]
     rows = re.findall(r"<tr[^>]*>(.*?)</tr>", seg, re.S)
@@ -119,11 +119,11 @@ def fetch_observations(star=STAR, num=NUM_RESULTS, obs_types=OBS_TYPES):
         try:
             jd_raw   = _txt(tds[2])
             date_raw = _txt(tds[3])
-            mag_raw  = _txt(tds[4])      # sichtbarer Text des Links = Magnitude
+            mag_raw  = _txt(tds[4])      # visible link text = magnitude
             band     = _txt(tds[6])
             observer = _txt(tds[7]) if len(tds) > 7 else ""
 
-            fainter = mag_raw.startswith("<")        # "<13.5" = schwaecher als
+            fainter = mag_raw.startswith("<")        # "<13.5" = fainter than
             mag_clean = mag_raw.lstrip("<>").strip()
             mag = float(mag_clean)
             jd  = float(jd_raw)
@@ -136,25 +136,25 @@ def fetch_observations(star=STAR, num=NUM_RESULTS, obs_types=OBS_TYPES):
     return obs
 
 def _txt(cell):
-    """HTML-Zelle -> sauberer Text (Tags raus, Entities aufloesen)."""
+    """HTML cell -> clean text (strip tags, unescape entities)."""
     return ihtml.unescape(re.sub(r"<.*?>", "", cell, flags=re.S)).strip()
 
 # --------------------------------------------------------------------------
-# Auswertung
+# Evaluation
 # --------------------------------------------------------------------------
 def brightest_real(obs, bands=ALERT_BANDS):
-    """Hellste *echte* Messung in den relevanten Baendern (keine 'fainter-than'-
-    Limits, kein Infrarot). Gibt None zurueck, falls nichts Passendes vorliegt."""
+    """Brightest *real* measurement in the relevant bands (no 'fainter-than'
+    limits, no infrared). Returns None if nothing suitable is found."""
     real = [o for o in obs if not o["fainter_than"] and o["band"] in bands]
     return min(real, key=lambda o: o["mag"]) if real else None
 
 def _csv_safe(s):
-    """Verhindert CSV-Formel-Injection in Tabellenkalkulationen."""
+    """Prevents CSV formula injection in spreadsheet applications."""
     s = str(s)
     return "'" + s if s and s[0] in ("=", "+", "-", "@", "\t", "\r") else s
 
 def append_csv(obs, path=CSV_PATH):
-    """Neue Beobachtungen anhand der JD in die CSV-Historie schreiben (dedupliziert)."""
+    """Write new observations to the CSV history by JD (deduplicated)."""
     seen = set()
     if os.path.exists(path):
         with open(path, newline="", encoding="utf-8") as f:
@@ -178,7 +178,7 @@ def load_state(path=STATE_PATH):
             with open(path, encoding="utf-8") as f:
                 return json.load(f)
         except (json.JSONDecodeError, OSError):
-            print(f"Warnung: {path} unleserlich, setze Zustand zurueck.", file=sys.stderr)
+            print(f"Warning: {path} unreadable, resetting state.", file=sys.stderr)
     return {"level": "quiescent", "last_jd": 0.0}
 
 def save_state(state, path=STATE_PATH):
@@ -190,13 +190,13 @@ def save_state(state, path=STATE_PATH):
     os.replace(tmp, path)
 
 # --------------------------------------------------------------------------
-# Benachrichtigung
+# Notification
 # --------------------------------------------------------------------------
 def macos_notify(title, message):
     if not USE_MACOS_NOTIFY:
         return
-    # Strings als argv uebergeben, nicht in den AppleScript-Quelltext einbetten,
-    # um AppleScript-Injection durch gescrapte Beobachterdaten zu verhindern.
+    # Pass strings as argv, not interpolated into the AppleScript source,
+    # to prevent AppleScript injection via scraped observer data.
     script = (
         "on run argv\n"
         "  display notification (item 1 of argv)"
@@ -213,9 +213,9 @@ def macos_notify(title, message):
         pass
 
 def send_signal(text):
-    """Sendet eine Nachricht ueber signal-cli an eine Gruppe oder an Nummern.
-    Schlaegt nicht das Skript tot, falls signal-cli fehlt oder fehlerhaft ist --
-    die macOS-Mitteilung bleibt als zweiter Kanal bestehen."""
+    """Sends a message via signal-cli to a group or to individual numbers.
+    Does not kill the script if signal-cli is missing or fails --
+    the macOS notification remains as a second channel."""
     if not SIGNAL_ENABLED:
         return
     if SIGNAL_GROUP_ID:
@@ -223,81 +223,81 @@ def send_signal(text):
     else:
         targets = list(SIGNAL_RECIPIENTS)
     if not targets:
-        print("Signal: kein Ziel konfiguriert -- uebersprungen.", file=sys.stderr)
+        print("Signal: no target configured -- skipped.", file=sys.stderr)
         return
     cmd = [SIGNAL_CLI, "-u", SIGNAL_ACCOUNT, "send", "-m", text, "--"] + targets
     try:
         res = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if res.returncode != 0:
-            print(f"Signal-Versand fehlgeschlagen (rc={res.returncode}): "
+            print(f"Signal send failed (rc={res.returncode}): "
                   f"{res.stderr.strip()}", file=sys.stderr)
     except FileNotFoundError:
-        print(f"Signal: '{SIGNAL_CLI}' nicht gefunden -- Pfad pruefen.",
+        print(f"Signal: '{SIGNAL_CLI}' not found -- check path.",
               file=sys.stderr)
     except subprocess.TimeoutExpired:
-        print("Signal: Zeitueberschreitung beim Senden.", file=sys.stderr)
+        print("Signal: timeout while sending.", file=sys.stderr)
 
 def recent_context(obs, bands=ALERT_BANDS, window_days=1.0, max_points=5):
-    """Kurzer Trendblock fuer die Alarmmeldung: Spanne und Aenderungsrate der
-    relevanten Messungen im Zeitfenster (Default 24 h ab juengster Beobachtung)
-    plus die juengsten Einzelpunkte. Liefert mehrzeiligen Text."""
+    """Short trend block for the alert message: range and rate of change of
+    relevant measurements in the time window (default 24 h from newest observation),
+    plus the most recent individual points. Returns multi-line text."""
     real = [o for o in obs if not o["fainter_than"] and o["band"] in bands]
     if not real:
-        return "Kein Vis./V-Kontext verfuegbar."
+        return "No Vis./V context available."
     real.sort(key=lambda o: o["jd"], reverse=True)   # neueste zuerst
     newest_jd = real[0]["jd"]
     window = [o for o in real if o["jd"] >= newest_jd - window_days]
 
     mags = [o["mag"] for o in window]
-    hell, schwach = min(mags), max(mags)
-    lines = [f"Letzte {window_days*24:.0f} h: {len(window)} Vis./V-Messung(en), "
-             f"{hell:.2f}-{schwach:.2f} mag (Ruhe ~10)."]
+    bright, faint = min(mags), max(mags)
+    lines = [f"Last {window_days*24:.0f} h: {len(window)} Vis./V reading(s), "
+             f"{bright:.2f}-{faint:.2f} mag (quiescent ~10)."]
 
-    # Aenderungsrate ueber das Fenster (negativ = wird heller)
+    # Rate of change across the window (negative = getting brighter)
     if len(window) >= 2:
         delta_days = window[0]["jd"] - window[-1]["jd"]
         dmag = window[0]["mag"] - window[-1]["mag"]
         if delta_days > 0:
             rate = dmag / delta_days
-            richtung = "heller" if dmag < 0 else ("schwaecher" if dmag > 0 else "stabil")
-            lines.append(f"Tendenz: {abs(dmag):.2f} mag {richtung} in "
-                         f"{delta_days*24:.1f} h  (~{abs(rate):.2f} mag/Tag).")
+            direction = "brighter" if dmag < 0 else ("fainter" if dmag > 0 else "stable")
+            lines.append(f"Trend: {abs(dmag):.2f} mag {direction} over "
+                         f"{delta_days*24:.1f} h  (~{abs(rate):.2f} mag/day).")
 
-    lines.append("Juengste Punkte:")
+    lines.append("Recent points:")
     for o in real[:max_points]:
         obs_name = o["observer"] or "?"
         lines.append(f"  {o['date']}  {o['mag']:.2f} {o['band']}  ({obs_name})")
     return "\n".join(lines)
 
 def alert(level, obs, brightest):
-    icon = {"warn": "[!] T CrB AUFFAELLIG", "erupt": "[!!!] T CrB AUSBRUCH?"}[level]
+    icon = {"warn": "[!] T CrB NOTABLE", "erupt": "[!!!] T CrB ERUPTION?"}[level]
     line = (f"{brightest['mag']:.2f} mag ({brightest['band']}) "
-            f"am {brightest['date']}  -- Beob. {brightest['observer']}")
+            f"on {brightest['date']}  -- obs. {brightest['observer']}")
     body = (f"{icon}\n\n"
-            f"Hellste aktuelle Messung: {line}\n\n"
+            f"Brightest current reading: {line}\n\n"
             f"{recent_context(obs)}\n\n"
-            f"Live-Lichtkurve: https://app.aavso.org/v2/lcg/  (Stern: T CRB)\n"
-            f"Kampagne #875:  https://forums.aavso.org/t/observing-campaigns-875-monitoring-t-crb/946\n\n"
-            f"Sternbild Corona Borealis -- bei Ausbruch ~2-3 mag, mit blossem Auge sichtbar.")
+            f"Live light curve: https://app.aavso.org/v2/lcg/  (star: T CRB)\n"
+            f"Campaign #875:  https://forums.aavso.org/t/observing-campaigns-875-monitoring-t-crb/946\n\n"
+            f"Constellation Corona Borealis -- at eruption ~2-3 mag, visible to the naked eye.")
     print(body)
     macos_notify(icon, line)
     send_signal(body)
 
 # --------------------------------------------------------------------------
-# Hauptablauf
+# Main
 # --------------------------------------------------------------------------
 def run(warn_mag, erupt_mag, dry_run=False):
     obs = fetch_observations()
     if not obs:
-        print("Keine Beobachtungen erhalten -- Endpunktstruktur evtl. geaendert?",
+        print("No observations received -- endpoint structure may have changed?",
               file=sys.stderr)
         return 2
 
     n_new = 0 if dry_run else append_csv(obs)
     b = brightest_real(obs)
     if b is None:
-        print("Keine auswertbaren Vis./V-Messungen in den juengsten Daten "
-              "(nur Limits oder andere Baender) -- nichts zu melden.")
+        print("No usable Vis./V measurements in the latest data "
+              "(limits or other bands only) -- nothing to report.")
         return 0
 
     state = load_state()
@@ -312,10 +312,10 @@ def run(warn_mag, erupt_mag, dry_run=False):
 
     rank = {"quiescent": 0, "warn": 1, "erupt": 2}
     now = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
-    print(f"[{now}] hellste echte Messung: {b['mag']:.2f} {b['band']} "
-          f"({b['date']}) | Status: {level} | neue Datensaetze: {n_new}")
+    print(f"[{now}] brightest real reading: {b['mag']:.2f} {b['band']} "
+          f"({b['date']}) | status: {level} | new records: {n_new}")
 
-    # Alarm nur bei *Verschlechterung* der Stufe (Entprellung gegen Mehrfachmeldungen)
+    # Alert only on *escalation* of level (debounce against duplicate alerts)
     if rank[level] > rank[prev_level] and level in ("warn", "erupt"):
         alert(level, obs, b)
 
@@ -326,24 +326,24 @@ def run(warn_mag, erupt_mag, dry_run=False):
     return 0
 
 def parse_args():
-    p = argparse.ArgumentParser(description="AAVSO-Helligkeitsmonitor fuer T CrB")
+    p = argparse.ArgumentParser(description="AAVSO brightness monitor for T CrB")
     p.add_argument("--warn-mag", type=float, default=WARN_MAG,
-                   help=f"Fruehwarnschwelle in mag (Vorgabe {WARN_MAG})")
+                   help=f"early-warning threshold in mag (default {WARN_MAG})")
     p.add_argument("--erupt-mag", type=float, default=ERUPT_MAG,
-                   help=f"Ausbruchsschwelle in mag (Vorgabe {ERUPT_MAG})")
+                   help=f"eruption threshold in mag (default {ERUPT_MAG})")
     p.add_argument("--dry-run", action="store_true",
-                   help="nur abrufen/anzeigen, nichts speichern oder alarmieren")
+                   help="fetch and display only, no writes or alerts")
     p.add_argument("--test-alert", action="store_true",
-                   help="Test-Benachrichtigung ueber alle Kanaele senden und beenden")
+                   help="send test notification on all channels and exit")
     return p.parse_args()
 
 if __name__ == "__main__":
     args = parse_args()
     if args.test_alert:
-        msg = ("[TEST] T CrB-Monitor: Benachrichtigung funktioniert. "
-               "Kein Ausbruch -- dies ist nur ein Verbindungstest.")
+        msg = ("[TEST] T CrB-Monitor: notification working. "
+               "No eruption -- this is a connectivity test only.")
         print(msg)
-        macos_notify("[TEST] T CrB-Monitor", "Signal-/Mitteilungstest erfolgreich.")
+        macos_notify("[TEST] T CrB-Monitor", "Signal/notification test successful.")
         send_signal(msg)
         sys.exit(0)
     sys.exit(run(args.warn_mag, args.erupt_mag, dry_run=args.dry_run))

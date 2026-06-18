@@ -3,42 +3,42 @@
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Eindeutiges Label in umgekehrter Domain-Notation -->
+    <!-- Unique label in reverse-domain notation -->
     <key>Label</key>
     <string>de.agorion.tcrb</string>
 
-    <!-- Was ausgefuehrt wird. Pfade anpassen!
-         python3 pruefen mit:  which python3   (Apple-System-Python: /usr/bin/python3) -->
+    <!-- What gets executed. Adjust paths!
+         check python3 with:  which python3   (Apple system Python: /usr/bin/python3) -->
     <key>ProgramArguments</key>
     <array>
         <string>/opt/homebrew/bin/python3</string>
         <string>/Users/USERNAME/Scripts/tcrb/tcrb_monitor.py</string>
     </array>
 
-    <!-- Arbeitsverzeichnis: hier landen tcrb_history.csv und tcrb_state.json -->
+    <!-- Working directory: tcrb_history.csv and tcrb_state.json are written here -->
     <key>WorkingDirectory</key>
     <string>/Users/USERNAME/Scripts/tcrb</string>
 
-    <!-- Stuendlich zur vollen Stunde. launchd holt einen verpassten Lauf
-         nach, sobald der Mac aus dem Ruhezustand erwacht. -->
+    <!-- Hourly on the hour. launchd catches up a missed run
+         as soon as the Mac wakes from sleep. -->
     <key>StartCalendarInterval</key>
     <dict>
         <key>Minute</key>
         <integer>0</integer>
     </dict>
 
-    <!-- Einmal direkt beim Laden ausfuehren (gut zum Testen; spaeter optional). -->
+    <!-- Run once immediately on load (useful for testing; optional later). -->
     <key>RunAtLoad</key>
     <true/>
 
-    <!-- Logs zum Nachsehen bei Problemen -->
+    <!-- Logs for troubleshooting -->
     <key>StandardOutPath</key>
     <string>/Users/USERNAME/Scripts/tcrb/tcrb.log</string>
     <key>StandardErrorPath</key>
     <string>/Users/USERNAME/Scripts/tcrb/tcrb.err.log</string>
 
-    <!-- launchd gibt nur einen minimalen PATH vor. osascript (fuer die
-         macOS-Mitteilung) liegt in /usr/bin. -->
+    <!-- launchd provides only a minimal PATH. osascript (for the
+         macOS notification) lives in /usr/bin. -->
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>

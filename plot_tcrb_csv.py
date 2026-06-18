@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-T CrB - Visuelle Lichtkurve aus tcrb_history.csv
-Plottet Vis., V und TG; B/I/R werden ausgeschlossen
-(I/R = permanent heller M-Riese, B systematisch versetzt).
+T CrB - Visual light curve from tcrb_history.csv
+Plots Vis., V and TG; B/I/R excluded
+(I/R = permanently bright M-giant, B systematically offset).
 """
 
 import csv
@@ -25,23 +25,23 @@ except (FileNotFoundError, plistlib.InvalidFileException):
     _data_dir = _BASE
 
 CSV_PATH = os.path.join(_data_dir, "tcrb_history.csv")
-OUT_PATH = os.path.join(_BASE, "tcrb_lichtkurve.png")
-PLOT_BANDS = {"Vis.", "V", "TG"}          # auszuwertende Baender
-# Darstellung je Band: (Marker, Farbe, Klartext)
+OUT_PATH = os.path.join(_BASE, "tcrb_lightcurve.png")
+PLOT_BANDS = {"Vis.", "V", "TG"}          # bands to evaluate
+# style per band: (marker, colour, label)
 STYLE = {
-    "Vis.": ("o", "#1a73e8", "Vis. (visuelle Schaetzung)"),
+    "Vis.": ("o", "#1a73e8", "Vis. (visual estimate)"),
     "V":    ("D", "#e8710a", "V (Johnson)"),
-    "TG":   ("s", "#188038", "TG (DSLR-Gruen)"),
+    "TG":   ("s", "#188038", "TG (DSLR green)"),
 }
 # --------------------------------------------------------------------
 
 
 def jd_to_dt(jd):
-    """Julianisches Datum -> UTC-datetime."""
+    """Julian Date -> UTC datetime."""
     return datetime(2000, 1, 1, 12) + timedelta(days=jd - 2451545.0)
 
 
-# --- CSV einlesen, nach Band gruppieren ---
+# --- Read CSV, group by band ---
 series = {b: {"t": [], "m": []} for b in PLOT_BANDS}
 excluded = {}
 with open(CSV_PATH, newline="", encoding="utf-8") as f:
@@ -51,15 +51,15 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
             excluded[band] = excluded.get(band, 0) + 1
             continue
         if row.get("fainter_than", "0").strip() == "1":
-            continue  # "fainter-than"-Limits ueberspringen
+            continue  # skip "fainter-than" limits
         t = jd_to_dt(float(row["jd"]))
         m = float(row["mag"])
         series[band]["t"].append(t)
         series[band]["m"].append(m)
 
-print("ausgeschlossene Baender:", excluded)
+print("excluded bands:", excluded)
 for b in PLOT_BANDS:
-    print(f"  {b}: {len(series[b]['m'])} Punkte")
+    print(f"  {b}: {len(series[b]['m'])} points")
 
 # --- Plot ---
 plt.rcParams.update({
@@ -80,28 +80,29 @@ for band in ["Vis.", "V", "TG"]:
             ls="none", alpha=0.9, zorder=3, label=label)
 
 ax.invert_yaxis()
-ax.set_ylabel("Helligkeit [mag]")
-ax.set_xlabel("Datum / Uhrzeit (UT)")
+ax.set_ylabel("Brightness [mag]")
+ax.set_xlabel("Date / Time (UT)")
 all_times = [t for b in PLOT_BANDS for t in series[b]["t"]]
 _t0, _t1 = min(all_times), max(all_times)
 _date_fmt = "%d%b%y"
 _span = _t0.strftime(_date_fmt) if _t0.date() == _t1.date() else f"{_t0.strftime(_date_fmt)} - {_t1.strftime(_date_fmt)}"
-ax.set_title(f"T CrB \u2013 Visuelle Lichtkurve (AAVSO)\n{_span} \u00b7 Vis. + V + TG",
+ax.set_title(f"T CrB \u2013 Visual Light Curve (AAVSO)\n{_span} \u00b7 Vis. + V + TG",
              fontsize=13, pad=12)
 ax.grid(True, ls=":", color="#ccc", alpha=0.7)
 ax.legend(loc="upper left", frameon=True, framealpha=0.9, fontsize=10)
 
 _locator = mdates.AutoDateLocator(minticks=5, maxticks=9)
 ax.xaxis.set_major_locator(_locator)
-ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(_locator))
+ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(
+    _locator, formats=["%Y", "%b%y", "%d%b%y", "%H:%M", "%H:%M", "%S.%f"]))
 fig.autofmt_xdate(rotation=90, ha="right")
 
-# Ruhe-Niveau dezent hinterlegen
+# shade quiescent level subtly
 ax.axhspan(9.5, 10.2, color="#f1f3f4", zorder=0)
-ax.text(0.99, 0.04, "Status: quiescent  (B/I/R ausgeschlossen)",
+ax.text(0.99, 0.04, "Status: quiescent  (B/I/R excluded)",
         transform=ax.transAxes, ha="right", va="bottom",
         fontsize=9, color="#666", style="italic")
 
 fig.tight_layout()
 fig.savefig(OUT_PATH, dpi=150, bbox_inches="tight")
-print("gespeichert:", OUT_PATH)
+print("saved:", OUT_PATH)

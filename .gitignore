@@ -7,7 +7,7 @@ tcrb_history.csv
 tcrb_state.json
 
 # Generated output
-tcrb_lichtkurve.png
+tcrb_lightcurve.png
 
 # macOS
 .DS_Store
