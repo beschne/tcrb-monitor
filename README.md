@@ -104,7 +104,7 @@ python3 -m venv .venv
 
 The plotter reads the production CSV path from `de.agorion.tcrb.plist` (`WorkingDirectory`) if the plist is present — otherwise from the script directory.
 
-<img src="tcrb_lightcurve.sample.png" width="80%">
+<img src="tcrb_lightcurve.sample.png">
 
 ## Links
 
