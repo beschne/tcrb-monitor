@@ -104,6 +104,8 @@ python3 -m venv .venv
 
 The plotter reads the production CSV path from `de.agorion.tcrb.plist` (`WorkingDirectory`) if the plist is present — otherwise from the script directory.
 
+<img src="tcrb_lightcurve.sample.png" width="80%">
+
 ## Links
 
 - [T CrB current – TheSkyLive](https://theskylive.com/sky/stars/hr-5958-star) — live brightness and current information on T Coronae Borealis
