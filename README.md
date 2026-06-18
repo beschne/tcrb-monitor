@@ -89,7 +89,7 @@ Das schickt eine klar als Test markierte Nachricht über alle aktiven Kanäle un
 
 ## Lichtkurve plotten
 
-`plot_tcrb_csv.py` liest `tcrb_history.csv` und erzeugt `tcrb_lichtkurve.png` — eine visuelle Lichtkurve mit Vis.-, V- und TG-Band-Messungen. B, I, R, CV und SU werden ausgeschlossen (I/R: dauerhaft heller M-Riese; B: systematisch versetzt). „Fainter-than"-Limits werden ebenfalls übersprungen. Die x-Achse zeigt UTC-Datum/Uhrzeit aus den Julianischen Daten; die y-Achse ist wie üblich invertiert (heller oben). Der Titel gibt automatisch den Datumsbereich der vorhandenen Daten an.
+Das Skript `plot_tcrb_csv.py` liest `tcrb_history.csv` und erzeugt `tcrb_lichtkurve.png` — eine visuelle Lichtkurve mit Vis.-, V- und TG-Band-Messungen. B, I, R, CV und SU werden ausgeschlossen (I/R: dauerhaft heller M-Riese; B: systematisch versetzt). „Fainter-than"-Limits werden ebenfalls übersprungen. Die x-Achse zeigt UTC-Datum/Uhrzeit aus den Julianischen Daten; die y-Achse ist wie üblich invertiert (heller oben). Der Titel gibt automatisch den Datumsbereich der vorhandenen Daten an.
 
 ```bash
 .venv/bin/python plot_tcrb_csv.py
