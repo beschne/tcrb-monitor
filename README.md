@@ -87,6 +87,23 @@ python3 tcrb_monitor.py --test-alert
 
 Das schickt eine klar als Test markierte Nachricht über alle aktiven Kanäle und beendet sich, ohne den Status zu verändern — ideal, um vor dem Scharfschalten zu prüfen, ob Signal wirklich ankommt.
 
+## Lichtkurve plotten
+
+`plot_tcrb_csv.py` liest `tcrb_history.csv` und erzeugt `tcrb_lichtkurve.png` — eine visuelle Lichtkurve mit Vis.-, V- und TG-Band-Messungen. B, I, R, CV und SU werden ausgeschlossen (I/R: dauerhaft heller M-Riese; B: systematisch versetzt). „Fainter-than"-Limits werden ebenfalls übersprungen. Die x-Achse zeigt UTC-Datum/Uhrzeit aus den Julianischen Daten; die y-Achse ist wie üblich invertiert (heller oben). Der Titel gibt automatisch den Datumsbereich der vorhandenen Daten an.
+
+```bash
+.venv/bin/python plot_tcrb_csv.py
+```
+
+Benötigt `matplotlib`. Virtuelle Umgebung anlegen mit:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install matplotlib
+```
+
+Der Plotter liest den Produktions-CSV-Pfad aus `de.agorion.tcrb.plist` (`WorkingDirectory`), falls die Plist vorhanden ist — sonst aus dem Skriptverzeichnis.
+
 ## Links
 
 - [T CrB aktuell – TheSkyLive](https://theskylive.com/sky/stars/hr-5958-star) — Live-Helligkeit und aktuelle Informationen zu T Coronae Borealis
