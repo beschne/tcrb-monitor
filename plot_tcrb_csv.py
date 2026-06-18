@@ -84,8 +84,8 @@ ax.set_ylabel("Helligkeit [mag]")
 ax.set_xlabel("Datum / Uhrzeit (UT)")
 all_times = [t for b in PLOT_BANDS for t in series[b]["t"]]
 _t0, _t1 = min(all_times), max(all_times)
-_date_fmt = "%d. %b %Y"
-_span = _t0.strftime(_date_fmt) if _t0.date() == _t1.date() else f"{_t0.strftime(_date_fmt)}\u2013{_t1.strftime(_date_fmt)}"
+_date_fmt = "%d%b%y"
+_span = _t0.strftime(_date_fmt) if _t0.date() == _t1.date() else f"{_t0.strftime(_date_fmt)} - {_t1.strftime(_date_fmt)}"
 ax.set_title(f"T CrB \u2013 Visuelle Lichtkurve (AAVSO)\n{_span} \u00b7 Vis. + V + TG",
              fontsize=13, pad=12)
 ax.grid(True, ls=":", color="#ccc", alpha=0.7)
