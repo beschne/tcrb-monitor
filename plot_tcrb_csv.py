@@ -24,7 +24,8 @@ try:
 except (FileNotFoundError, plistlib.InvalidFileException):
     _data_dir = _BASE
 
-CSV_PATH = os.path.join(_data_dir, "tcrb_history.csv")
+CSV_PATH        = os.path.join(_data_dir, "tcrb_history.csv")
+ASASSN_CSV_PATH = os.path.join(_BASE, "asassn_history.csv")
 OUT_PATH = os.path.join(_BASE, "tcrb_lightcurve.png")
 PLOT_BANDS = {"Vis.", "V", "TG"}          # bands to evaluate
 # style per band: (marker, colour, label)
@@ -33,6 +34,7 @@ STYLE = {
     "V":    ("D", "#e8710a", "V (Johnson)"),
     "TG":   ("s", "#188038", "TG (DSLR green)"),
 }
+ASASSN_STYLE = ("^", "#9c27b0", "ASAS-SN (g)")
 # --------------------------------------------------------------------
 
 
@@ -61,6 +63,19 @@ print("excluded bands:", excluded)
 for b in PLOT_BANDS:
     print(f"  {b}: {len(series[b]['m'])} points")
 
+# --- Read ASAS-SN CSV if present and non-empty ---
+asassn = {"t": [], "m": []}
+if os.path.exists(ASASSN_CSV_PATH):
+    with open(ASASSN_CSV_PATH, newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            if row.get("fainter_than", "0").strip() == "1":
+                continue
+            if "(ASAS-SN)" not in row.get("band", ""):
+                continue
+            asassn["t"].append(jd_to_dt(float(row["jd"])))
+            asassn["m"].append(float(row["mag"]))
+    print(f"  ASAS-SN: {len(asassn['m'])} points")
+
 # --- Plot ---
 plt.rcParams.update({
     "font.family": "DejaVu Sans",
@@ -79,14 +94,22 @@ for band in ["Vis.", "V", "TG"]:
             ms=9, mfc=color, mec="white", mew=1.0,
             ls="none", alpha=0.9, zorder=3, label=label)
 
+if asassn["m"]:
+    marker, color, label = ASASSN_STYLE
+    ax.plot(asassn["t"], asassn["m"], marker,
+            ms=7, mfc=color, mec="white", mew=0.8,
+            ls="none", alpha=0.7, zorder=2, label=label)
+
 ax.invert_yaxis()
 ax.set_ylabel("Brightness [mag]")
 ax.set_xlabel("Date / Time (UT)")
-all_times = [t for b in PLOT_BANDS for t in series[b]["t"]]
+all_times = [t for b in PLOT_BANDS for t in series[b]["t"]] + asassn["t"]
 _t0, _t1 = min(all_times), max(all_times)
 _date_fmt = "%d%b%y"
 _span = _t0.strftime(_date_fmt) if _t0.date() == _t1.date() else f"{_t0.strftime(_date_fmt)} - {_t1.strftime(_date_fmt)}"
-ax.set_title(f"T CrB \u2013 Visual Light Curve (AAVSO)\n{_span} \u00b7 Vis. + V + TG",
+_sources = "AAVSO + ASAS-SN" if asassn["m"] else "AAVSO"
+_bands   = "Vis. + V + TG + g(ASAS-SN)" if asassn["m"] else "Vis. + V + TG"
+ax.set_title(f"T CrB \u2013 Visual Light Curve ({_sources})\n{_span} \u00b7 {_bands}",
              fontsize=13, pad=12)
 ax.grid(True, ls=":", color="#ccc", alpha=0.7)
 ax.legend(loc="upper left", frameon=True, framealpha=0.9, fontsize=10)
