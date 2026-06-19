@@ -94,7 +94,9 @@ ax.legend(loc="upper left", frameon=True, framealpha=0.9, fontsize=10)
 _locator = mdates.AutoDateLocator(minticks=5, maxticks=9)
 ax.xaxis.set_major_locator(_locator)
 ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(
-    _locator, formats=["%Y", "%b%y", "%d%b%y", "%H:%M", "%H:%M", "%S.%f"]))
+    _locator,
+    formats=["%Y", "%b%y", "%d%b%y", "%H:%M", "%H:%M", "%S.%f"],
+    offset_formats=["", "", "", "", "", ""]))
 fig.autofmt_xdate(rotation=90, ha="right")
 
 # shade quiescent level subtly
