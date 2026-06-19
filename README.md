@@ -128,7 +128,7 @@ python3 -m venv .venv
 .venv/bin/pip install matplotlib
 ```
 
-The plotter reads the production CSV path from `de.agorion.tcrb.plist` (`WorkingDirectory`) if the plist is present — otherwise from the script directory.
+The plotter reads the production CSV path from `de.agorion.tcrb.plist` (`WorkingDirectory`) if the plist is present — otherwise from the script directory. When `asassn_history.csv` contains data, the ASAS-SN g-band series is overlaid automatically as a fourth series; the title and legend update accordingly.
 
 <img src="tcrb_lightcurve.sample.png">
 
