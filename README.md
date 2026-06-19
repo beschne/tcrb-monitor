@@ -6,7 +6,8 @@ Polls the AAVSO WebObs database (AUID 000-BBW-825). Standard library only, no ex
 ## What it does
 
 - Fetches the latest 200 observations and appends them deduplicated to `tcrb_history.csv` (all bands, for your own analysis).
-- Evaluates thresholds on Vis. and V observations only — the M-giant companion keeps T CrB permanently ~7 mag in the I/R bands, which would otherwise cause constant false alarms.
+- Evaluates thresholds on Vis. and V observations only — the M-giant companion keeps T CrB permanently ~7 mag in the I/R bands, which would otherwise cause constant false alarms. 
+  - TG (transformed Green, a green-channel DSLR filter approximating V) is excluded because it tracks closely with V but adds calibration scatter; V and Vis. observations are sufficient and cleaner for threshold detection.
 - Two levels: `--warn-mag 8.0` (notable) and `--erupt-mag 6.0` (eruption likely). Alerts only on escalation; `tcrb_state.json` prevents duplicate notifications.
 - Alerts via macOS notification (`osascript`) and optionally via Signal.
 
