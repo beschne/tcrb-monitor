@@ -7,6 +7,7 @@ PRIVATE_NOTES.md
 # Runtime data
 tcrb_history.csv
 tcrb_state.json
+asassn_history.csv
 
 # Generated output
 tcrb_lightcurve.png

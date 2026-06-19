@@ -11,6 +11,7 @@ Monitors T Coronae Borealis ("Blaze Star") for a nova eruption by polling AAVSO 
 | File | Purpose |
 |------|---------|
 | `tcrb_monitor.py` | **Current version.** Standard library only (Python 3.9+). Alerts via macOS notification + Signal. |
+| `asassn_fetch.py` | ASAS-SN Sky Patrol fetcher. Analysis companion — **not** in the alert path. Writes `asassn_history.csv`. Requires `skypatrol` (`.venv/`). |
 | `plot_tcrb_csv.py` | Plots `tcrb_history.csv` → PNG. Requires `matplotlib` (`.venv/` in this folder). |
 | `de.agorion.tcrb.plist` | launchd job — fires `tcrb_monitor.py` hourly from `~/Scripts/tcrb/`. |
 
@@ -28,6 +29,15 @@ python3 tcrb_monitor.py --test-alert
 
 # Plot the CSV (uses .venv)
 .venv/bin/python plot_tcrb_csv.py
+
+# Fetch ASAS-SN data (analysis/plot only, not alerts)
+.venv/bin/python asassn_fetch.py
+
+# Read-only ASAS-SN fetch
+.venv/bin/python asassn_fetch.py --dry-run
+
+# Include quality-bad points
+.venv/bin/python asassn_fetch.py --all-quality
 ```
 
 ## Architecture
@@ -40,6 +50,28 @@ Alert logic in `run()`:
 - Only **Vis.** and **V** bands are evaluated — I/R/B are excluded. The M-giant companion keeps T CrB permanently bright (~6–7 mag) in the infrared, which would cause constant false alarms.
 - Three levels: `quiescent` → `warn` (≤ 8.0 mag) → `erupt` (≤ 6.0 mag).
 - An alert fires only when the level *escalates*. `tcrb_state.json` persists the last level across runs.
+
+## ASAS-SN fetcher (`asassn_fetch.py`)
+
+Fetches the ASAS-SN Sky Patrol light curve via a cone search (RA 239.8757°, Dec +25.9202°, radius 5″) and appends results to `asassn_history.csv` with the identical schema as `tcrb_history.csv` (`jd`, `date`, `mag`, `band`, `observer`, `fainter_than`), so `plot_tcrb_csv.py` can overlay both series.
+
+**Key design points:**
+- **Not in the alert path.** AAVSO remains the sole alert source. ASAS-SN is reference/analysis only.
+- **Recommended cadence: daily.** ASAS-SN updates ~nightly; hourly polling adds nothing.
+- **Band label:** stored as `g (ASAS-SN)` (etc.) to prevent accidental pooling with AAVSO Vis./V if CSVs are ever merged.
+- **Non-detections** are recorded as `fainter_than=1` with the limiting magnitude, mirroring AAVSO convention.
+- **Dependency:** `pyasassn` (plus pandas). Install into the same `.venv` as matplotlib: `pip install pyasassn`.
+
+**Saturation caveat:** ASAS-SN standard aperture photometry saturates near T CrB's quiescent brightness (~10 mag in g). Data quality degrades as the star brightens and is completely unreliable at eruption peak (~2 mag brighter). Use AAVSO Vis./V for the bright phase. ASAS-SN's ML "saturated stars" pipeline could handle it, but is not used here.
+
+**Status (verified 2026-06-19, skypatrol 0.6.21, Python 3.14):** Fully working.
+Use `skypatrol` (PyPI), not the obsolete `pyasassn 0.6.4` — the old package hardcoded
+data-server hostnames that no longer exist. `skypatrol` discovers servers dynamically
+via `/get_block_servers` and uses `pd.read_parquet` for deserialisation.
+
+Live DataFrame columns returned by the cone search:
+`asas_sn_id, jd, flux, flux_err, mag, mag_err, limit, fwhm, image_id, camera, quality (G/B), phot_filter`
+All columns in `_normalise_rows()` match this schema.
 
 ## Deployment (launchd)
 

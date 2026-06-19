@@ -91,6 +91,28 @@ python3 tcrb_monitor.py --test-alert
 
 This sends a clearly marked test message on all active channels and exits without changing state — ideal for verifying Signal delivery before going live.
 
+## ASAS-SN reference data
+
+`asassn_fetch.py` is a daily companion script that pulls the T CrB light curve from the [ASAS-SN Sky Patrol](https://asas-sn.ifa.hawaii.edu/skypatrol/) and appends new observations to `asassn_history.csv`. The CSV uses the same column layout as `tcrb_history.csv`, so `plot_tcrb_csv.py` can overlay both series for comparison.
+
+ASAS-SN provides instrumentally-calibrated g-band photometry independent of AAVSO's visual observers — useful as a cross-check but **not** used for alerts. Note that ASAS-SN standard aperture photometry saturates near T CrB's brightness at eruption peak; the AAVSO Vis./V data remains the primary alert source.
+
+```bash
+.venv/bin/python asassn_fetch.py             # fetch and append (≥ 2026-06-14 by default)
+.venv/bin/python asassn_fetch.py --dry-run   # fetch and print, no writes
+.venv/bin/python asassn_fetch.py --start-date 2026-01-01  # override start date
+.venv/bin/python asassn_fetch.py --start-date ''          # fetch full archive
+```
+
+Requires `skypatrol` (and its dependencies). Install everything via:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+```
+
+> **Current issue (as of June 2026):** ASAS-SN has been reprocessing their photometry database since 22 May 2025 and has not yet published observations for 2026. The daily run will silently produce 0 new rows until the pipeline catches up. No action needed — the script handles this gracefully.
+
 ## Plotting the light curve
 
 The script `plot_tcrb_csv.py` reads `tcrb_history.csv` and produces `tcrb_lightcurve.png` — a visual light curve with Vis., V, and TG band measurements. B, I, R, CV, and SU are excluded (I/R: permanently bright M-giant; B: systematically offset). Fainter-than limits are also skipped. The x-axis shows UTC date/time derived from Julian Dates; the y-axis is inverted as usual (brighter up). The title shows the date range of the available data automatically.
