@@ -2,6 +2,7 @@
 config.py
 de.agorion.tcrb.plist
 SECURITY_AUDIT.md
+PRIVATE_NOTES.md
 
 # Runtime data
 tcrb_history.csv
