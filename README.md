@@ -117,7 +117,7 @@ python3 -m venv .venv
 
 The photometry script (`tcrb_dynamicpsf_photometry.py`) converts a PixInsight DynamicPSF export into a calibrated TG magnitude for T CrB. It is a manual companion for owner-acquired images — **not** part of the automated alert path.
 
-Test runs using 30-minute stacks from a ZWO Seestar S30 Pro showed accurate V-magnitude results.
+Validated with 30-minute stacks from a ZWO Seestar S30 Pro, demonstrating that compact smart telescopes of this class are capable of producing scientifically useful differential photometry.
 
 **Workflow:**
 
