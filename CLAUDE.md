@@ -13,6 +13,7 @@ Monitors T Coronae Borealis ("Blaze Star") for a nova eruption by polling AAVSO 
 | `tcrb_monitor.py` | **Current version.** Standard library only (Python 3.9+). Alerts via macOS notification + Signal. |
 | `asassn_fetch.py` | ASAS-SN Sky Patrol fetcher. Analysis companion — **not** in the alert path. Writes `asassn_history.csv`. Requires `skypatrol` (`.venv/`). |
 | `plot_tcrb_csv.py` | Plots `tcrb_history.csv` → PNG. Requires `matplotlib` (`.venv/` in this folder). |
+| `tcrb_dynamicpsf_photometry.py` | PixInsight DynamicPSF differential photometry — manual tool, **not** in the alert path. See section below. Requires `requests`. |
 | `de.agorion.tcrb.plist` | launchd job — fires `tcrb_monitor.py` hourly from `~/Scripts/tcrb/`. |
 
 ## Running
@@ -50,6 +51,30 @@ Alert logic in `run()`:
 - Only **Vis.** and **V** bands are evaluated — I/R/B are excluded. The M-giant companion keeps T CrB permanently bright (~6–7 mag) in the infrared, which would cause constant false alarms.
 - Three levels: `quiescent` → `warn` (≤ 8.0 mag) → `erupt` (≤ 6.0 mag).
 - An alert fires only when the level *escalates*. `tcrb_state.json` persists the last level across runs.
+
+## PixInsight DynamicPSF photometry (`tcrb_dynamicpsf_photometry.py`)
+
+Manual companion script for owner-acquired imaging data. Workflow:
+
+1. In PixInsight, extract the green channel from the raw-stacked image (Rohsummenstack) and run **DynamicPSF** on it, clicking T CrB and surrounding comparison stars.
+2. Export the DynamicPSF table as CSV — the export must include `alpha` (RA, degrees) and `delta` (Dec, degrees) columns per star in addition to the standard DynamicPSF columns (`flux`, `mad`, …). Save as `dynamicpsf_export.csv` next to the script.
+3. Run `python3 tcrb_dynamicpsf_photometry.py`. The script:
+   - Identifies T CrB by matching the nearest row to its known J2000 position (RA 239.882°, Dec +25.920°).
+   - Queries the **AAVSO VSP API** for each comparison star's catalog V magnitude using its sky coordinates.
+   - Computes differential photometry (`m_TG = m_V_comp − 2.5 log₁₀(F_T CrB / F_comp)`) per comparison star and averages the results.
+   - Prints the derived TG magnitude with standard deviation and n.
+
+**Key design points:**
+- **Not in the alert path.** Run manually after each imaging session.
+- **Band label:** `TG` (AAVSO notation for DSLR/camera green channel approximating V). The monitor's alert logic ignores TG — only Vis. and V are evaluated for threshold crossings.
+- **Quality filters:** rows with MAD > 0.05 or flux < 1.0 are silently rejected as poor PSF fits (PixInsight exports normalized flux, not raw counts).
+- **VSP caching:** all comparison stars in a frame typically fit within one VSP field of view, so the API is usually called only once per run.
+- **Dependency:** `requests`. Install into `.venv/` alongside matplotlib: `pip install requests`.
+- **Input file:** `dynamicpsf_export.csv` is gitignored (local imaging data, not shared).
+
+```bash
+python3 tcrb_dynamicpsf_photometry.py
+```
 
 ## ASAS-SN fetcher (`asassn_fetch.py`)
 

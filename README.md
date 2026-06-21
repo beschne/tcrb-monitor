@@ -113,6 +113,24 @@ python3 -m venv .venv
 
 > **Current issue (as of June 2026):** ASAS-SN has been reprocessing their photometry database since 22 May 2025 and has not yet published observations for 2026. The daily run will silently produce 0 new rows until the pipeline catches up. No action needed — the script handles this gracefully.
 
+## PixInsight DynamicPSF photometry (own imaging)
+
+`tcrb_dynamicpsf_photometry.py` converts a PixInsight DynamicPSF export into a calibrated TG magnitude for T CrB. It is a manual companion for owner-acquired images — **not** part of the automated alert path.
+
+Test runs using 30-minute stacks from a ZWO Seestar S30 Pro showed accurate V-magnitude results.
+
+**Workflow:**
+
+1. In PixInsight, extract the green channel from your stacked image and run **DynamicPSF** on it, clicking T CrB and several comparison stars.
+2. Export the DynamicPSF table as CSV. The export must include `alpha` (RA, degrees) and `delta` (Dec, degrees) per star alongside the standard `flux`/`mad` columns. Save it as `dynamicpsf_export.csv` next to the script — or change the filename at the top of the script (`DYNAMICPSF_CSV`).
+3. Run the script — it auto-identifies T CrB by proximity to its known catalog position, queries the AAVSO VSP API for each comparison star's V magnitude, and derives the TG magnitude via differential photometry.
+
+```bash
+python3 tcrb_dynamicpsf_photometry.py
+```
+
+Requires `requests` (`pip install requests` into `.venv/`).
+
 ## Plotting the light curve
 
 The script `plot_tcrb_csv.py` reads `tcrb_history.csv` and produces `tcrb_lightcurve.png` — a visual light curve with Vis., V, and TG band measurements. B, I, R, CV, and SU are excluded (I/R: permanently bright M-giant; B: systematically offset). Fainter-than limits are also skipped. The x-axis shows UTC date/time derived from Julian Dates; the y-axis is inverted as usual (brighter up). The title shows the date range of the available data automatically.

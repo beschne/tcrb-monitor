@@ -8,6 +8,8 @@ PRIVATE_NOTES.md
 tcrb_history.csv
 tcrb_state.json
 asassn_history.csv
+dynamicpsf_export.csv
+dynamicpsf_vsp_cache.json
 
 # Generated output
 tcrb_lightcurve.png
