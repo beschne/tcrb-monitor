@@ -93,7 +93,7 @@ This sends a clearly marked test message on all active channels and exits withou
 
 ## ASAS-SN reference data
 
-`asassn_fetch.py` is a daily companion script that pulls the T CrB light curve from the [ASAS-SN Sky Patrol](https://asas-sn.ifa.hawaii.edu/skypatrol/) and appends new observations to `asassn_history.csv`. The CSV uses the same column layout as `tcrb_history.csv`, so `plot_tcrb_csv.py` can overlay both series for comparison.
+The ASAS-SN fetcher (`asassn_fetch.py`) is a daily companion script that pulls the T CrB light curve from the [ASAS-SN Sky Patrol](https://asas-sn.ifa.hawaii.edu/skypatrol/) and appends new observations to `asassn_history.csv`. The CSV uses the same column layout as `tcrb_history.csv`, so `plot_tcrb_csv.py` can overlay both series for comparison.
 
 ASAS-SN provides instrumentally-calibrated g-band photometry independent of AAVSO's visual observers — useful as a cross-check but **not** used for alerts. Note that ASAS-SN standard aperture photometry saturates near T CrB's brightness at eruption peak; the AAVSO Vis./V data remains the primary alert source.
 
@@ -115,7 +115,7 @@ python3 -m venv .venv
 
 ## PixInsight DynamicPSF photometry (own imaging)
 
-`tcrb_dynamicpsf_photometry.py` converts a PixInsight DynamicPSF export into a calibrated TG magnitude for T CrB. It is a manual companion for owner-acquired images — **not** part of the automated alert path.
+The photometry script (`tcrb_dynamicpsf_photometry.py`) converts a PixInsight DynamicPSF export into a calibrated TG magnitude for T CrB. It is a manual companion for owner-acquired images — **not** part of the automated alert path.
 
 Test runs using 30-minute stacks from a ZWO Seestar S30 Pro showed accurate V-magnitude results.
 
@@ -128,6 +128,8 @@ Test runs using 30-minute stacks from a ZWO Seestar S30 Pro showed accurate V-ma
 ```bash
 python3 tcrb_dynamicpsf_photometry.py
 ```
+
+Comparison star V magnitudes are fetched from the AAVSO VSP API on the first run and cached in `dynamicpsf_vsp_cache.json`. Subsequent runs use the cache — no network access needed.
 
 Requires `requests` (`pip install requests` into `.venv/`).
 
