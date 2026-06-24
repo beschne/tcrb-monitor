@@ -11,6 +11,7 @@ Polls the AAVSO WebObs database (AUID 000-BBW-825). Standard library only, no ex
 - Fetches the latest 200 observations and appends them deduplicated to `tcrb_history.csv` (all bands, for your own analysis). The AAVSO International Database includes observations from the British Astronomical Association, Variable Star Section (BAAVSS, merged December 2014) and AFOEV (Association Française des Observateurs d'Étoiles Variables, ongoing cooperation), so those are covered automatically.
 - Evaluates thresholds on Vis. and V observations only — the M-giant companion keeps T CrB permanently ~7 mag in the I/R bands, which would otherwise cause constant false alarms. 
   - TG (transformed Green, a green-channel DSLR filter approximating V) is excluded because it tracks closely with V but adds calibration scatter; V and Vis. observations are sufficient and cleaner for threshold detection.
+  - Non-detections (AAVSO `<mag` upper limits, e.g. a shallow-telescope observer reporting `<4.9`) are parsed but excluded from threshold evaluation — only confirmed measurements trigger alerts.
 - Two levels: `--warn-mag 8.0` (notable) and `--erupt-mag 6.0` (eruption likely). Alerts only on escalation; `tcrb_state.json` prevents duplicate notifications.
 - Alerts via macOS notification (`osascript`) and optionally via Signal.
 
@@ -151,6 +152,10 @@ python3 -m venv .venv
 The plotter reads the production CSV path from `de.agorion.tcrb.plist` (`WorkingDirectory`) if the plist is present — otherwise from the script directory. When `asassn_history.csv` contains data, the ASAS-SN g-band series is overlaid automatically as a fourth series; the title and legend update accordingly.
 
 <img src="tcrb_lightcurve.sample.png">
+
+## Finder chart
+
+See [FINDER_CHART.md](FINDER_CHART.md) — AAVSO chart X42597QE (1° FOV, V mag limit 14.50) with comparison star V magnitudes.
 
 ## Links
 
