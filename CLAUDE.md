@@ -15,6 +15,7 @@ Monitors T Coronae Borealis ("Blaze Star") for a nova eruption by polling AAVSO 
 | `plot_tcrb_csv.py` | Plots `tcrb_history.csv` → PNG. Requires `matplotlib` (`.venv/` in this folder). |
 | `tcrb_dynamicpsf_photometry.py` | PixInsight DynamicPSF differential photometry — manual tool, **not** in the alert path. See section below. Requires `requests`. |
 | `de.agorion.tcrb.plist` | launchd job — fires `tcrb_monitor.py` hourly from `~/Scripts/tcrb/`. |
+| `FINDER_CHART.md` | AAVSO finder chart X42597QE (1° FOV) with V-band comparison star table. Reference only, not used by any script. |
 
 ## Running
 
