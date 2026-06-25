@@ -1,8 +1,5 @@
 # T CrB Monitor
 
-> **Next predicted eruption window: 25 June 2026**
-> Despite several past predictions that did not pan out, current analysis of T CrB's pre-nova dimming behaviour points to **25 June 2026** as the next most likely date for the eruption. Keep watching!
-
 Alert when T Coronae Borealis (T CrB) erupts after 80 years of quiescence.
 Polls the AAVSO WebObs database (AUID 000-BBW-825). Standard library only, no external packages.
 
