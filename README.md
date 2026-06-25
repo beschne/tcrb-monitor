@@ -160,4 +160,4 @@ See [docs/FINDER_CHART.md](docs/FINDER_CHART.md) — AAVSO chart X42597QE (1° F
 
 - [T CrB current – TheSkyLive](https://theskylive.com/sky/stars/hr-5958-star) — live brightness and current information on T Coronae Borealis
 - [AAVSO Photometry Database Search](https://apps.aavso.org/v2/data/search/photometry/) — search raw data from all AAVSO observations
-- [My AAVSO observations (BSLA)](https://apps.aavso.org/v2/data/search/user/?observer=BSLA) — own submitted observations, including those produced by `tcrb_xisf_photometry.py`
+- [My AAVSO observations (BSLA)](https://apps.aavso.org/v2/data/search/user/?observer=BSLA) — own submitted observations, including those produced by `tcrb_xisf_photometry.py`. Requires a free AAVSO account (logged in) to view.
