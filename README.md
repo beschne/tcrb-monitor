@@ -3,7 +3,7 @@
 Alert when [T Coronae Borealis](https://en.wikipedia.org/wiki/T_Coronae_Borealis) (T CrB, the "Blaze Star") erupts after 80 years of quiescence.
 Polls the AAVSO WebObs database (AUID 000-BBW-825). Standard library only, no external packages.
 
-T CrB is a binary star system about 3,000 light-years away: a bloated red giant slowly shedding its outer layers onto a dense white dwarf companion. Over millennia, stolen hydrogen piles up on the white dwarf's surface until it reaches a critical pressure and temperature — then it all ignites at once in a thermonuclear explosion called a nova. The star briefly blazes from ~10th magnitude (invisible to the naked eye) to around 2nd magnitude, rivalling the North Star, before fading back to obscurity over the following weeks. The last time this happened was 1946; the time before that, 1866.
+T CrB is a binary star system about 3,000 light-years away: a bloated [red giant](https://en.wikipedia.org/wiki/Red_giant) slowly shedding its outer layers onto a dense [white dwarf](https://en.wikipedia.org/wiki/White_dwarf) companion. Over millennia, stolen hydrogen piles up on the white dwarf's surface until it reaches a critical pressure and temperature — then it all ignites at once in a thermonuclear explosion called a nova. The star briefly blazes from ~10th magnitude (invisible to the naked eye) to around 2nd magnitude, rivalling the North Star, before fading back to obscurity over the following weeks. The last time this happened was 1946; the time before that, 1866.
 
 ## What it does
 
