@@ -15,9 +15,11 @@ Workflow:
      coordinates to retrieve its catalog V magnitude, then computes
      the TG magnitude of T CrB via differential photometry.
 
-VSP results are cached in dynamicpsf_vsp_cache.json — catalog magnitudes
-for comparison stars are permanent, so the API is only called once per
-unique field position (typically once ever for this fixed field).
+VSP results are cached in dynamicpsf_vsp_cache.json (this folder) —
+catalog magnitudes for comparison stars are permanent, so the API is only
+called once per unique field position. That cache is shared with
+../tcrb_xisf_photometry.py, which imports this module for the same VSP
+query/cache and differential-magnitude code.
 
 No FITS header / WCS handling is required - this script relies
 entirely on the alpha/delta columns already present in the CSV.
@@ -36,8 +38,11 @@ import requests
 # Tunable Constants
 # ---------------------------------------------------------------------------
 
-DYNAMICPSF_CSV = "dynamicpsf_export.csv"   # export from PixInsight (with alpha/delta)
-VSP_CACHE_FILE = "dynamicpsf_vsp_cache.json"  # persists VSP lookups across runs
+# Resolved relative to this file, not the working directory, so the script
+# (and ../tcrb_xisf_photometry.py, which imports it) behave the same
+# regardless of where they're invoked from.
+DYNAMICPSF_CSV = str(Path(__file__).parent / "dynamicpsf_export.csv")
+VSP_CACHE_FILE = str(Path(__file__).parent / "dynamicpsf_vsp_cache.json")
 BAND_LABEL = "TG"                          # AAVSO notation for DSLR green channel
 
 # Identification of T CrB within the table. DynamicPSF rows have no

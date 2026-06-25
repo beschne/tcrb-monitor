@@ -64,20 +64,20 @@ USE_MACOS_NOTIFY = True       # macOS notification via osascript
 #   signal-cli -u +1YOURNUMBER listGroups
 SIGNAL_ENABLED    = True
 SIGNAL_CLI        = "/opt/homebrew/bin/signal-cli"  # Apple Silicon; Intel: /usr/local/bin
-SIGNAL_ACCOUNT    = ""        # loaded from config.py
+SIGNAL_ACCOUNT    = ""        # loaded from tcrb_monitor_config.py
 SIGNAL_GROUP_ID   = ""        # base64 group ID (takes priority if set)
 SIGNAL_RECIPIENTS = []        # or: one or more phone numbers
 
-# Load secrets from config.py (not in repo, see config.sample.py)
+# Load secrets from tcrb_monitor_config.py (not in repo, see tcrb_monitor_config.sample.py)
 try:
-    import config as _cfg
+    import tcrb_monitor_config as _cfg
     SIGNAL_CLI        = getattr(_cfg, "SIGNAL_CLI",        SIGNAL_CLI)
     SIGNAL_ACCOUNT    = getattr(_cfg, "SIGNAL_ACCOUNT",    SIGNAL_ACCOUNT)
     SIGNAL_GROUP_ID   = getattr(_cfg, "SIGNAL_GROUP_ID",   SIGNAL_GROUP_ID)
     SIGNAL_RECIPIENTS = getattr(_cfg, "SIGNAL_RECIPIENTS", SIGNAL_RECIPIENTS)
 except ImportError:
     if SIGNAL_ENABLED:
-        print("Note: config.py missing – Signal disabled.", file=sys.stderr)
+        print("Note: tcrb_monitor_config.py missing – Signal disabled.", file=sys.stderr)
     SIGNAL_ENABLED = False
 
 # AAVSO WebObs URL and User-Agent

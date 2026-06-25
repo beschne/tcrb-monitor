@@ -30,7 +30,7 @@ Place the script and plist in a fixed location and update all `/Users/USERNAME/S
 ```bash
 mkdir -p ~/Scripts/tcrb
 cp tcrb_monitor.py ~/Scripts/tcrb/
-cp config.py ~/Scripts/tcrb/          # secrets; launchd loads from WorkingDirectory
+cp tcrb_monitor_config.py ~/Scripts/tcrb/  # secrets; launchd loads from WorkingDirectory
 cp de.agorion.tcrb.plist ~/Library/LaunchAgents/
 
 # validate syntax (no output = ok)
@@ -64,12 +64,12 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/de.agorion.tcrb.plist
 
 ## Signal alerts
 
-Fill in `config.py` (template: `config.sample.py`):
+Fill in `tcrb_monitor_config.py` (template: `tcrb_monitor_config.sample.py`):
 
 - `SIGNAL_CLI` — verify path with `which signal-cli` (Apple Silicon usually `/opt/homebrew/bin/signal-cli`)
 - `SIGNAL_ACCOUNT` — your linked phone number
 - Either `SIGNAL_GROUP_ID` (takes priority) or `SIGNAL_RECIPIENTS`
-- `SIGNAL_ENABLED` is set in the script header and defaults to `True`; if `config.py` is missing, Signal disables itself automatically.
+- `SIGNAL_ENABLED` is set in the script header and defaults to `True`; if `tcrb_monitor_config.py` is missing, Signal disables itself automatically.
 
 Two more things: the signal-cli path must be absolute because launchd provides only a minimal PATH. And signal-cli stores its state in `~/.local/share/signal-cli` — since the LaunchAgent runs under your user account, this works without extra configuration.
 
@@ -91,6 +91,25 @@ python3 tcrb_monitor.py --test-alert
 ```
 
 This sends a clearly marked test message on all active channels and exits without changing state — ideal for verifying Signal delivery before going live.
+
+## Plotting the light curve
+
+The script `plot_tcrb_csv.py` reads `tcrb_history.csv` and produces `tcrb_lightcurve.png` — a visual light curve with Vis., V, and TG band measurements. B, I, R, CV, and SU are excluded (I/R: permanently bright M-giant; B: systematically offset). Fainter-than limits are also skipped. The x-axis shows UTC date/time derived from Julian Dates; the y-axis is inverted as usual (brighter up). The title shows the date range of the available data automatically.
+
+```bash
+.venv/bin/python plot_tcrb_csv.py
+```
+
+Requires `matplotlib`. Create a virtual environment with:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install matplotlib
+```
+
+The plotter reads the production CSV path from `de.agorion.tcrb.plist` (`WorkingDirectory`) if the plist is present — otherwise from the script directory. When `asassn_history.csv` contains data, the ASAS-SN g-band series is overlaid automatically as a fourth series (see below); the title and legend update accordingly.
+
+<img src="tcrb_lightcurve.sample.png">
 
 ## ASAS-SN reference data
 
@@ -114,50 +133,31 @@ python3 -m venv .venv
 
 > **Current issue (as of June 2026):** ASAS-SN has been reprocessing their photometry database since 22 May 2025 and has not yet published observations for 2026. The daily run will silently produce 0 new rows until the pipeline catches up. No action needed — the script handles this gracefully.
 
-## PixInsight DynamicPSF photometry (own imaging)
+## Differential photometry (own imaging)
 
-The photometry script (`tcrb_dynamicpsf_photometry.py`) converts a PixInsight DynamicPSF export into a calibrated TG magnitude for T CrB. It is a manual companion for owner-acquired images — **not** part of the automated alert path.
+Two companion scripts derive a calibrated TG magnitude for T CrB from your own stacked images via differential photometry against AAVSO comparison stars. Neither is part of the automated alert path. Both have been validated against 30-minute stacks from a ZWO Seestar S30 Pro, demonstrating that compact smart telescopes of this class are capable of producing scientifically useful differential photometry.
 
-Validated with 30-minute stacks from a ZWO Seestar S30 Pro, demonstrating that compact smart telescopes of this class are capable of producing scientifically useful differential photometry.
+- **`tcrb_xisf_photometry.py`** (current, automated) — point it at a plate-solved, stacked XISF master light and it does everything: reads the green channel and PixInsight's embedded astrometric solution directly from the file, locates T CrB and every in-frame AAVSO comparison star by sky coordinates, fits each with a 2D Gaussian, and computes the differential magnitude. No PixInsight session needed at run time.
 
-**Workflow:**
+  ```bash
+  .venv/bin/python tcrb_xisf_photometry.py raw_stack_2026-06-06.xisf
+  .venv/bin/python tcrb_xisf_photometry.py *.xisf   # or process a whole batch at once
+  ```
 
-1. In PixInsight, extract the green channel from your stacked image and run **DynamicPSF** on it, clicking T CrB and several comparison stars.
-2. Export the DynamicPSF table as CSV. The export must include `alpha` (RA, degrees) and `delta` (Dec, degrees) per star alongside the standard `flux`/`mad` columns. Save it as `dynamicpsf_export.csv` next to the script — or change the filename at the top of the script (`DYNAMICPSF_CSV`).
-3. Run the script — it auto-identifies T CrB by proximity to its known catalog position, queries the AAVSO VSP API for each comparison star's V magnitude, and derives the TG magnitude via differential photometry.
+  Requires `numpy`, `astropy`, `scipy` (`.venv/bin/pip install scipy` — numpy/astropy already present), `requests`.
 
-```bash
-python3 tcrb_dynamicpsf_photometry.py
-```
+  The reported observation time (JD) is read from the stack's `DATE-OBS` FITS keyword, taken as-is — `DATE-END` is not read or used at all. **Known caveat:** PixInsight's `ImageIntegration` sets `DATE-OBS` to the midpoint between the *first* and *last* subframe's start times, ignoring exposure duration entirely — not true mid-exposure time, and unreliable in practice for Seestar stacks (source: [Cosmic Canvas, "Guide to Preprocessing of Raw Data with PixInsight"](https://sh-cosmiccanvas.s3.us-west-2.amazonaws.com/Resources/20230101_GuideToPreprocessingOfRawDataWithPixInsight.pdf)). Until that's fixed upstream, `DATE-OBS` is corrected by hand to genuine mid-exposure time (start of the first sub-frame + half the total integration span) based on the actual light frames used for each stack, before running the script.
 
-Comparison star V magnitudes are fetched from the AAVSO VSP API on the first run and cached in `dynamicpsf_vsp_cache.json`. Subsequent runs use the cache — no network access needed.
+- **[`legacy/tcrb_dynamicpsf_photometry.py`](legacy/README.md)** (manual, kept as a cross-check) — the original workflow: click T CrB and comparison stars by hand in PixInsight's DynamicPSF tool, export a CSV, then run the script to derive the same differential magnitude. See [`legacy/README.md`](legacy/README.md) for the full workflow.
 
-Requires `requests` (`pip install requests` into `.venv/`).
-
-## Plotting the light curve
-
-The script `plot_tcrb_csv.py` reads `tcrb_history.csv` and produces `tcrb_lightcurve.png` — a visual light curve with Vis., V, and TG band measurements. B, I, R, CV, and SU are excluded (I/R: permanently bright M-giant; B: systematically offset). Fainter-than limits are also skipped. The x-axis shows UTC date/time derived from Julian Dates; the y-axis is inverted as usual (brighter up). The title shows the date range of the available data automatically.
-
-```bash
-.venv/bin/python plot_tcrb_csv.py
-```
-
-Requires `matplotlib`. Create a virtual environment with:
-
-```bash
-python3 -m venv .venv
-.venv/bin/pip install matplotlib
-```
-
-The plotter reads the production CSV path from `de.agorion.tcrb.plist` (`WorkingDirectory`) if the plist is present — otherwise from the script directory. When `asassn_history.csv` contains data, the ASAS-SN g-band series is overlaid automatically as a fourth series; the title and legend update accordingly.
-
-<img src="tcrb_lightcurve.sample.png">
+Both share a VSP magnitude cache (`legacy/dynamicpsf_vsp_cache.json`) so repeated runs against the same sky field don't re-query AAVSO.
 
 ## Finder chart
 
-See [FINDER_CHART.md](FINDER_CHART.md) — AAVSO chart X42597QE (1° FOV, V mag limit 14.50) with comparison star V magnitudes.
+See [docs/FINDER_CHART.md](docs/FINDER_CHART.md) — AAVSO chart X42597QE (1° FOV, V mag limit 14.50) with comparison star V magnitudes.
 
 ## Links
 
 - [T CrB current – TheSkyLive](https://theskylive.com/sky/stars/hr-5958-star) — live brightness and current information on T Coronae Borealis
 - [AAVSO Photometry Database Search](https://apps.aavso.org/v2/data/search/photometry/) — search raw data from all AAVSO observations
+- [My AAVSO observations (BSLA)](https://apps.aavso.org/v2/data/search/user/?observer=BSLA) — own submitted observations, including those produced by `tcrb_xisf_photometry.py`
