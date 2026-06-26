@@ -41,8 +41,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 CAMPAIGN_DIR = (
-    Path(__file__).resolve().parent.parent.parent
-    / "2026-06-25 Seestar S30 Pro (EQ) - T Coronae Borealis CAMPAIGN"
+    Path(__file__).resolve().parent.parent.parent / "T Coronae Borealis CAMPAIGN"
 )
 
 XISF_NS = {"x": "http://www.pixinsight.com/xisf"}
@@ -106,8 +105,10 @@ def process_folder(folder: Path) -> None:
             exptimes.append(times[2])
 
     if not starts:
-        print(f"  {len(xisf_files)} .xisf files found, but none had usable "
-              f"DATE-OBS/EXPTIME header data.")
+        print(
+            f"  {len(xisf_files)} .xisf files found, but none had usable "
+            f"DATE-OBS/EXPTIME header data."
+        )
         return
 
     first_start = min(starts)
@@ -121,7 +122,9 @@ def process_folder(folder: Path) -> None:
     elif len(set(exptimes)) == 1:
         print(f"  exposure time per frame: {exptimes[0]:g}s")
     else:
-        print(f"  exposure time per frame: varies ({min(exptimes):g}s - {max(exptimes):g}s)")
+        print(
+            f"  exposure time per frame: varies ({min(exptimes):g}s - {max(exptimes):g}s)"
+        )
     print(f"  first frame start: {first_start.isoformat()}")
     print(f"  last frame end:    {last_end.isoformat()}")
     print(f"  span: {last_end - first_start}")
@@ -135,7 +138,9 @@ def main():
         if not CAMPAIGN_DIR.exists():
             sys.exit(f"Error: default campaign folder not found: {CAMPAIGN_DIR}")
         folders = sorted(
-            p for p in CAMPAIGN_DIR.iterdir() if p.is_dir() and p.name.endswith("lights")
+            p
+            for p in CAMPAIGN_DIR.iterdir()
+            if p.is_dir() and p.name.endswith("lights")
         )
         if not folders:
             sys.exit(f"Error: no '*lights' folders found in {CAMPAIGN_DIR}")
