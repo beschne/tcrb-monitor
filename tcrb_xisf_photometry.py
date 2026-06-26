@@ -40,14 +40,34 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import numpy as np
+from astropy.coordinates import AltAz, EarthLocation, get_body
 from astropy.modeling import fitting, models
 from astropy.time import Time
+import astropy.units as u
 
 # tcrb_dynamicpsf_photometry.py (VSP query/cache + differential_magnitude
 # reuse) lives in legacy/ now - not a package, so it needs to be on the
 # import path explicitly.
 sys.path.insert(0, str(Path(__file__).parent / "legacy"))
 import tcrb_dynamicpsf_photometry as dpsf
+
+# ---------------------------------------------------------------------------
+# Observer location (Bad Homburg, Germany)
+# ---------------------------------------------------------------------------
+
+OBSERVER_LOCATION = EarthLocation(lat=50.2267 * u.deg, lon=8.6183 * u.deg, height=160 * u.m)
+
+
+def moon_info(obs_time):
+    """Return (phase_pct, altitude_deg) for the moon at obs_time from Bad Homburg."""
+    altaz_frame = AltAz(obstime=obs_time, location=OBSERVER_LOCATION)
+    moon = get_body("moon", obs_time, OBSERVER_LOCATION)
+    sun = get_body("sun", obs_time, OBSERVER_LOCATION)
+    elongation = moon.separation(sun)
+    phase_pct = round((1 - math.cos(elongation.rad)) / 2 * 100)
+    altitude_deg = round(moon.transform_to(altaz_frame).alt.deg)
+    return phase_pct, altitude_deg
+
 
 # ---------------------------------------------------------------------------
 # Tunable Constants
@@ -520,8 +540,12 @@ def process_file(xisf_path: Path) -> None:
         print(f"Check Star: label={check['label']}  Mag={check['mag']:.3f} "
               f"(err {check['mag_err']:.3f})")
         if num_frames is not None and exptime is not None:
+            moon_phase, moon_alt = moon_info(obs_time)
+            moon_pos = (f"{moon_alt}° above horizon" if moon_alt >= 0
+                        else f"{-moon_alt}° below horizon")
             print(f"Comments: Measurement based on a stack of {num_frames} x "
-                  f"{float(exptime):g}s exposures.")
+                  f"{float(exptime):g}s exposures. "
+                  f"Moon: {moon_phase}% illuminated, {moon_pos}.")
         print(f"  consistency check: check star's derived mag = {m_check_derived:.3f} "
               f"vs. catalog {check['mag']:.3f}  (Delta={check_delta:+.3f})")
 
