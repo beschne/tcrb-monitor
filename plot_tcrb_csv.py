@@ -5,6 +5,7 @@ Plots Vis., V and TG; B/I/R excluded
 (I/R = permanently bright M-giant, B systematically offset).
 """
 
+import argparse
 import csv
 from datetime import datetime, timedelta
 import os
@@ -43,8 +44,15 @@ def jd_to_dt(jd):
     return datetime(2000, 1, 1, 12) + timedelta(days=jd - 2451545.0)
 
 
+# --- CLI ---
+_ap = argparse.ArgumentParser()
+_ap.add_argument("--observer", default=None,
+                 help="AAVSO observer code to highlight in bright green")
+HIGHLIGHT_OBSERVER = _ap.parse_args().observer
+
 # --- Read CSV, group by band ---
 series = {b: {"t": [], "m": []} for b in PLOT_BANDS}
+observer_data = {"t": [], "m": []}
 excluded = {}
 with open(CSV_PATH, newline="", encoding="utf-8") as f:
     for row in csv.DictReader(f):
@@ -58,10 +66,15 @@ with open(CSV_PATH, newline="", encoding="utf-8") as f:
         m = float(row["mag"])
         series[band]["t"].append(t)
         series[band]["m"].append(m)
+        if HIGHLIGHT_OBSERVER and row.get("observer", "").strip() == HIGHLIGHT_OBSERVER:
+            observer_data["t"].append(t)
+            observer_data["m"].append(m)
 
 print("excluded bands:", excluded)
 for b in PLOT_BANDS:
     print(f"  {b}: {len(series[b]['m'])} points")
+if HIGHLIGHT_OBSERVER:
+    print(f"  {HIGHLIGHT_OBSERVER} (highlighted): {len(observer_data['m'])} points")
 
 # --- Read ASAS-SN CSV if present and non-empty ---
 asassn = {"t": [], "m": []}
@@ -93,6 +106,11 @@ for band in ["Vis.", "V", "TG"]:
     ax.plot(series[band]["t"], series[band]["m"], marker,
             ms=9, mfc=color, mec="white", mew=1.0,
             ls="none", alpha=0.9, zorder=3, label=label)
+
+if HIGHLIGHT_OBSERVER and observer_data["m"]:
+    ax.plot(observer_data["t"], observer_data["m"], "p",
+            ms=12, mfc="#00e676", mec="#000", mew=0.6,
+            ls="none", alpha=1.0, zorder=5, label=f"TG by {HIGHLIGHT_OBSERVER}")
 
 if asassn["m"]:
     marker, color, label = ASASSN_STYLE

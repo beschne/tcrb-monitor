@@ -34,6 +34,9 @@ python3 tcrb_monitor.py --test-alert
 # Plot the CSV (uses .venv)
 .venv/bin/python plot_tcrb_csv.py
 
+# Highlight a specific observer in bright green
+.venv/bin/python plot_tcrb_csv.py --observer BSLA
+
 # Fetch ASAS-SN data (analysis/plot only, not alerts)
 .venv/bin/python asassn_fetch.py
 

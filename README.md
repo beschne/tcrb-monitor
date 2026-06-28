@@ -97,6 +97,9 @@ The script `plot_tcrb_csv.py` reads `tcrb_history.csv` and produces `tcrb_lightc
 
 ```bash
 .venv/bin/python plot_tcrb_csv.py
+
+# Highlight a specific AAVSO observer in bright green
+.venv/bin/python plot_tcrb_csv.py --observer BSLA
 ```
 
 Requires `matplotlib`. Create a virtual environment with:
