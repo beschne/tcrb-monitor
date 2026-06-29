@@ -26,7 +26,7 @@ it approved, so scanning just the .xisf files already gives exactly the
 approved subset, with no separate rejection filtering needed.
 
 Usage:
-  python3 tools/tcrb_session_midtime.py [folder ...]
+  python3 photometry/tools/tcrb_session_midtime.py [folder ...]
 
   With no arguments, scans every "<date> lights" folder inside the default
   campaign directory below. That default is resolved relative to this
@@ -41,7 +41,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 CAMPAIGN_DIR = (
-    Path(__file__).resolve().parent.parent.parent / "T Coronae Borealis CAMPAIGN"
+    Path(__file__).resolve().parent.parent.parent.parent / "T Coronae Borealis CAMPAIGN"
 )
 
 XISF_NS = {"x": "http://www.pixinsight.com/xisf"}

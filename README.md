@@ -137,22 +137,7 @@ python3 -m venv .venv
 
 ## Differential photometry (own imaging)
 
-Two companion scripts derive a calibrated TG magnitude for T CrB from your own stacked images via differential photometry against AAVSO comparison stars. Neither is part of the automated alert path. Both have been validated against 30-minute stacks from a ZWO Seestar S30 Pro, demonstrating that compact smart telescopes of this class are capable of producing scientifically useful differential photometry.
-
-- **`tcrb_xisf_photometry.py`** (current, automated) — point it at a plate-solved, stacked XISF master light and it does everything: reads the green channel and PixInsight's embedded astrometric solution directly from the file, locates T CrB and every in-frame AAVSO comparison star by sky coordinates, fits each with a 2D Gaussian, and computes the differential magnitude. No PixInsight session needed at run time.
-
-  ```bash
-  .venv/bin/python tcrb_xisf_photometry.py raw_stack_2026-06-06.xisf
-  .venv/bin/python tcrb_xisf_photometry.py *.xisf   # or process a whole batch at once
-  ```
-
-  Requires `numpy`, `astropy`, `scipy` (`.venv/bin/pip install scipy` — numpy/astropy already present), `requests`.
-
-  The reported observation time (JD) is read from the stack's `DATE-OBS` FITS keyword, taken as-is — `DATE-END` is not read or used at all. **Known caveat:** PixInsight's `ImageIntegration` sets `DATE-OBS` to the midpoint between the *first* and *last* subframe's start times, ignoring exposure duration entirely — not true mid-exposure time, and unreliable in practice for Seestar stacks (source: [Cosmic Canvas, "Guide to Preprocessing of Raw Data with PixInsight"](https://sh-cosmiccanvas.s3.us-west-2.amazonaws.com/Resources/20230101_GuideToPreprocessingOfRawDataWithPixInsight.pdf)). Until that's fixed upstream, `DATE-OBS` is corrected by hand to genuine mid-exposure time (start of the first sub-frame + half the total integration span) based on the actual light frames used for each stack, before running the script.
-
-- **[`legacy/tcrb_dynamicpsf_photometry.py`](legacy/README.md)** (manual, kept as a cross-check) — the original workflow: click T CrB and comparison stars by hand in PixInsight's DynamicPSF tool, export a CSV, then run the script to derive the same differential magnitude. See [`legacy/README.md`](legacy/README.md) for the full workflow.
-
-Both share a VSP magnitude cache (`legacy/dynamicpsf_vsp_cache.json`) so repeated runs against the same sky field don't re-query AAVSO.
+See [`photometry/README.md`](photometry/README.md).
 
 ## Finder chart
 
@@ -162,4 +147,4 @@ See [docs/FINDER_CHART.md](docs/FINDER_CHART.md) — AAVSO chart X42597QE (1° F
 
 - [T CrB current – TheSkyLive](https://theskylive.com/sky/stars/hr-5958-star) — live brightness and current information on T Coronae Borealis
 - [AAVSO Photometry Database Search](https://apps.aavso.org/v2/data/search/photometry/) — search raw data from all AAVSO observations
-- [My AAVSO observations (BSLA)](https://apps.aavso.org/v2/data/search/user/?observer=BSLA) — own submitted observations, including those produced by `tcrb_xisf_photometry.py`. Requires a free AAVSO account (logged in) to view.
+- [My AAVSO observations (BSLA)](https://apps.aavso.org/v2/data/search/user/?observer=BSLA) — own submitted observations, including those produced by the scripts in [`photometry/`](photometry/README.md). Requires a free AAVSO account (logged in) to view.

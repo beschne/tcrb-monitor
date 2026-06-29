@@ -45,10 +45,7 @@ from astropy.modeling import fitting, models
 from astropy.time import Time
 import astropy.units as u
 
-# tcrb_dynamicpsf_photometry.py (VSP query/cache + differential_magnitude
-# reuse) lives in legacy/ now - not a package, so it needs to be on the
-# import path explicitly.
-sys.path.insert(0, str(Path(__file__).parent / "legacy"))
+sys.path.insert(0, str(Path(__file__).parent))
 import tcrb_dynamicpsf_photometry as dpsf
 
 # ---------------------------------------------------------------------------
