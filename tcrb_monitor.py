@@ -82,7 +82,7 @@ except ImportError:
 
 # AAVSO WebObs URL and User-Agent
 WEBOBS_URL = "https://www.aavso.org/apps/webobs/results/"
-USER_AGENT = "AGO-TCrB-Monitor/1.0 (Volkssternwarte Hochtaunus)"
+USER_AGENT = "AGO-TCrB-Monitor/1.1 (Volkssternwarte Hochtaunus)"
 
 # --------------------------------------------------------------------------
 # Fetch + Parse
@@ -111,7 +111,7 @@ def fetch_observations(star=STAR, num=NUM_RESULTS, obs_types=OBS_TYPES):
 
     obs = []
     for tr in rows:
-        if star.replace(" ", "") not in tr.replace(" ", ""):
+        if star.replace(" ", "").lower() not in tr.replace(" ", "").lower():
             continue
         tds = re.findall(r"<td[^>]*>(.*?)</td>", tr, re.S)
         if len(tds) < 7:
@@ -154,13 +154,13 @@ def _csv_safe(s):
     return "'" + s if s and s[0] in ("=", "+", "-", "@", "\t", "\r") else s
 
 def append_csv(obs, path=CSV_PATH):
-    """Write new observations to the CSV history by JD (deduplicated)."""
+    """Write new observations to the CSV history by (JD, band) (deduplicated)."""
     seen = set()
     if os.path.exists(path):
         with open(path, newline="", encoding="utf-8") as f:
             for row in csv.DictReader(f):
-                seen.add(row["jd"])
-    new = [o for o in obs if f"{o['jd']:.5f}" not in seen]
+                seen.add((row["jd"], row["band"]))
+    new = [o for o in obs if (f"{o['jd']:.5f}", o["band"]) not in seen]
     write_header = not os.path.exists(path)
     with open(path, "a", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
