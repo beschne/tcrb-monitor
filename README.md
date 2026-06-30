@@ -93,12 +93,13 @@ This sends a clearly marked test message on all active channels and exits withou
 
 ## Plotting the light curve
 
-The script `plot_tcrb_csv.py` reads `tcrb_history.csv` and produces `tcrb_lightcurve.png` — a visual light curve with Vis., V, and TG band measurements. B, I, R, CV, and SU are excluded (I/R: permanently bright M-giant; B: systematically offset). Fainter-than limits are also skipped. The x-axis shows UTC date/time derived from Julian Dates; the y-axis is inverted as usual (brighter up). The title shows the date range of the available data automatically.
+The script `plot_tcrb_csv.py` reads `tcrb_history.csv` and produces `tcrb_lightcurve.png` — a visual light curve with Vis. (yellow), V (orange), TG (green), and TB (blue) band measurements. B, I, R, CV, SU, and TR are excluded (I/R: permanently bright M-giant; B/SU: systematically offset). Fainter-than limits are also skipped. The x-axis shows UTC date/time derived from Julian Dates; the y-axis is inverted as usual (brighter up). The title shows the date range of the available data automatically.
 
 ```bash
 .venv/bin/python plot_tcrb_csv.py
 
-# Highlight a specific AAVSO observer in bright green (BSLA = author's observer code)
+# Highlight a specific AAVSO observer: TG observations as green pentagrams,
+# TB observations as light-blue pentagrams (BSLA = author's observer code)
 .venv/bin/python plot_tcrb_csv.py --observer BSLA
 ```
 
