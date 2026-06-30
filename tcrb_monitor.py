@@ -82,7 +82,7 @@ except ImportError:
 
 # AAVSO WebObs URL and User-Agent
 WEBOBS_URL = "https://www.aavso.org/apps/webobs/results/"
-USER_AGENT = "AGO-TCrB-Monitor/1.2 (Volkssternwarte Hochtaunus)"
+USER_AGENT = "AGO-TCrB-Monitor/1.3 (Volkssternwarte Hochtaunus)"
 
 # --------------------------------------------------------------------------
 # Fetch + Parse

@@ -12,7 +12,7 @@ Monitors T Coronae Borealis ("Blaze Star") for a nova eruption by polling AAVSO 
 |------|---------|
 | `tcrb_monitor.py` | **Current version.** Standard library only (Python 3.9+). Alerts via macOS notification + Signal. |
 | `asassn_fetch.py` | ASAS-SN Sky Patrol fetcher. Analysis companion — **not** in the alert path. Writes `asassn_history.csv`. Requires `skypatrol` (`.venv/`). |
-| `plot_tcrb_csv.py` | Plots `tcrb_history.csv` → PNG. Bands: Vis. (yellow), V (orange), TG (green), TB (blue). Overlays a 48 h rolling median of V+Vis. as a red trend curve. `--observer CODE` highlights that observer's TG/TB points as pentagrams. Requires `matplotlib` + `numpy` (`.venv/` in this folder). |
+| `plot_tcrb_csv.py` | Plots `tcrb_history.csv` → PNG. Bands: Vis. (yellow), V (orange), TG (green), TB (blue). `--observer CODE` highlights that observer's TG/TB points as pentagrams connected by a smooth PCHIP curve. Requires `matplotlib` + `scipy` (`.venv/`). |
 | `photometry/` | Legacy Python differential-photometry scripts — superseded by the PixInsight script but kept as cross-checks. See `photometry/CLAUDE.md`. |
 | `de.agorion.tcrb.plist` | launchd job — fires `tcrb_monitor.py` hourly from `~/Scripts/tcrb/`. |
 | `docs/FINDER_CHART.md` | AAVSO finder chart X42597QE (1° FOV) with V-band comparison star table. Reference only, not used by any script. Also in `docs/`: the chart image (`X42597QE.png`), its full photometry table (`X42597QE_photometry.csv`), `SECURITY_AUDIT.md`, and `PRIVATE_NOTES.md` (the latter two gitignored). |
@@ -49,7 +49,33 @@ python3 tcrb_monitor.py --test-alert
 
 `fetch_observations()` scrapes the AAVSO WebObs HTML table (no API key needed, AUID `000-BBW-825`). It returns dicts with `jd`, `mag`, `band`, `fainter_than`, etc.
 
-`append_csv()` deduplicates by JD (`.5f` precision) before appending to `tcrb_history.csv`.
+`append_csv()` deduplicates by **(JD, band)** pair before appending to `tcrb_history.csv`. Keying on JD alone would silently drop same-session multi-filter observations (e.g. TG + TB taken at the same timestamp).
+
+**Band label convention:** TG and TB are produced by one-shot colour (OSC) cameras, not dedicated DSLR sensors, so legend labels read "TG (OSC green)" and "TB (OSC blue)" — not "DSLR".
+
+## Backfilling historical AAVSO data
+
+The hourly monitor fetches only the latest 200 observations. To backfill further into the past, use the `page=N` pagination parameter on the WebObs endpoint (200 obs per page, newest first):
+
+```
+https://apps.aavso.org/webobs/results/?star=000-BBW-825&num_results=200&page=N
+```
+
+**Key notes:**
+- Use the AUID (`000-BBW-825`) rather than the star name in the URL for pagination.
+- The star name appears as `"T CRB"` (uppercase) in the HTML table — the row filter must be **case-insensitive** (`"tcrb" in tr.replace(" ", "").lower()`).
+- Each page covers roughly 0.2 days at current T CrB observation rates (~200 obs/day). Reaching June 14 from June 30 required ~89 pages.
+- `append_csv()` is idempotent — safe to re-merge pages already in the CSV.
+- After a bulk merge, sort the CSV in place by JD (column 0) to restore chronological order:
+
+```python
+import csv
+with open("tcrb_history.csv", newline="") as f:
+    reader = csv.reader(f); header = next(reader); rows = list(reader)
+rows.sort(key=lambda r: float(r[0]))
+with open("tcrb_history.csv", "w", newline="") as f:
+    w = csv.writer(f); w.writerow(header); w.writerows(rows)
+```
 
 Alert logic in `run()`:
 - Only **Vis.** and **V** bands are evaluated — I/R/B are excluded. The M-giant companion keeps T CrB permanently bright (~6–7 mag) in the infrared, which would cause constant false alarms.
