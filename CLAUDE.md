@@ -12,7 +12,7 @@ Monitors T Coronae Borealis ("Blaze Star") for a nova eruption by polling AAVSO 
 |------|---------|
 | `tcrb_monitor.py` | **Current version.** Standard library only (Python 3.9+). Alerts via macOS notification + Signal. |
 | `asassn_fetch.py` | ASAS-SN Sky Patrol fetcher. Analysis companion — **not** in the alert path. Writes `asassn_history.csv`. Requires `skypatrol` (`.venv/`). |
-| `plot_tcrb_csv.py` | Plots `tcrb_history.csv` → PNG. Requires `matplotlib` (`.venv/` in this folder). |
+| `plot_tcrb_csv.py` | Plots `tcrb_history.csv` → PNG. Bands: Vis. (yellow), V (orange), TG (green), TB (blue). Overlays a 48 h rolling median of V+Vis. as a red trend curve. `--observer CODE` highlights that observer's TG/TB points as pentagrams. Requires `matplotlib` + `numpy` (`.venv/` in this folder). |
 | `photometry/` | Legacy Python differential-photometry scripts — superseded by the PixInsight script but kept as cross-checks. See `photometry/CLAUDE.md`. |
 | `de.agorion.tcrb.plist` | launchd job — fires `tcrb_monitor.py` hourly from `~/Scripts/tcrb/`. |
 | `docs/FINDER_CHART.md` | AAVSO finder chart X42597QE (1° FOV) with V-band comparison star table. Reference only, not used by any script. Also in `docs/`: the chart image (`X42597QE.png`), its full photometry table (`X42597QE_photometry.csv`), `SECURITY_AUDIT.md`, and `PRIVATE_NOTES.md` (the latter two gitignored). |
@@ -32,7 +32,7 @@ python3 tcrb_monitor.py --test-alert
 # Plot the CSV (uses .venv)
 .venv/bin/python plot_tcrb_csv.py
 
-# Highlight a specific observer in bright green
+# Highlight a specific observer: TG = green pentagram, TB = light-blue pentagram
 .venv/bin/python plot_tcrb_csv.py --observer BSLA
 
 # Fetch ASAS-SN data (analysis/plot only, not alerts)

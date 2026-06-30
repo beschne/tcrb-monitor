@@ -10,6 +10,7 @@ import csv
 from datetime import datetime, timedelta
 import os
 import plistlib
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
@@ -101,7 +102,35 @@ plt.rcParams.update({
 fig, ax = plt.subplots(figsize=(11, 6.5), dpi=150)
 fig.patch.set_facecolor("white")
 
-for band in ["Vis.", "V", "TG", "TB"]:
+for band in ["Vis.", "V"]:
+    if band not in series or not series[band]["m"]:
+        continue
+    marker, color, label = STYLE[band]
+    ax.plot(series[band]["t"], series[band]["m"], marker,
+            ms=9, mfc=color, mec="white", mew=1.0,
+            ls="none", alpha=0.9, zorder=3, label=label)
+
+# Rolling 48h median over V + Vis. (centered window) — drawn behind data points
+_trend_pts = sorted(
+    zip(series["V"]["t"] + series["Vis."]["t"],
+        series["V"]["m"] + series["Vis."]["m"]),
+    key=lambda x: x[0]
+)
+if len(_trend_pts) >= 2:
+    _tt = np.array([t.timestamp() for t, _ in _trend_pts])
+    _mm = np.array([m for _, m in _trend_pts])
+    _half = 24 * 3600  # 24 h either side → 48 h window
+    _trend_t, _trend_m = [], []
+    for i, (t, _) in enumerate(_trend_pts):
+        mask = np.abs(_tt - _tt[i]) <= _half
+        if mask.sum() >= 2:
+            _trend_t.append(t)
+            _trend_m.append(float(np.median(_mm[mask])))
+    if _trend_t:
+        ax.plot(_trend_t, _trend_m, "-", color="#c62828", lw=1.5,
+                alpha=0.7, zorder=2, label="48 h rolling median (V+Vis.)")
+
+for band in ["TG", "TB"]:
     if band not in series or not series[band]["m"]:
         continue
     marker, color, label = STYLE[band]
