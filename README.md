@@ -8,8 +8,7 @@ T CrB is a binary star system about 3,000 light-years away: a bloated [red giant
 ## What it does
 
 - Fetches the latest 200 observations and appends them deduplicated to `tcrb_history.csv` (all bands, for your own analysis). The AAVSO International Database includes observations from the British Astronomical Association, Variable Star Section (BAAVSS, merged December 2014) and AFOEV (Association Française des Observateurs d'Étoiles Variables, ongoing cooperation), so those are covered automatically.
-- Evaluates thresholds on Vis. and V observations only — the M-giant companion keeps T CrB permanently ~7 mag in the I/R bands, which would otherwise cause constant false alarms. 
-  - TG (transformed Green, a green-channel DSLR filter approximating V) is excluded because it tracks closely with V but adds calibration scatter; V and Vis. observations are sufficient and cleaner for threshold detection.
+- Evaluates alert thresholds on Vis. and V observations only — the M-giant companion keeps T CrB permanently ~7 mag in the I/R bands, which would otherwise cause constant false alarms. All other bands (TG, TB, B, I, R, …) are stored in the CSV and shown in the light curve, but not used for alerting.
   - Non-detections (AAVSO `<mag` upper limits, e.g. a shallow-telescope observer reporting `<4.9`) are parsed but excluded from threshold evaluation — only confirmed measurements trigger alerts.
 - Two levels: `--warn-mag 8.0` (notable) and `--erupt-mag 6.0` (eruption likely). Alerts only on escalation; `tcrb_state.json` prevents duplicate notifications.
 - Alerts via macOS notification (`osascript`) and optionally via Signal.
