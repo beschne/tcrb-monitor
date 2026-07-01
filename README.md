@@ -1,5 +1,7 @@
 # T CrB Monitor
 
+*[Deutsch](README.de.md)*
+
 Alert when [T Coronae Borealis](https://en.wikipedia.org/wiki/T_Coronae_Borealis) (T CrB, the "Blaze Star") erupts after 80 years of quiescence.
 Polls the [AAVSO](https://en.wikipedia.org/wiki/American_Association_of_Variable_Star_Observers) WebObs database (AUID 000-BBW-825). Standard library only, no external packages.
 
