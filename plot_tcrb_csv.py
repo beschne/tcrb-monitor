@@ -208,8 +208,9 @@ def main():
     ax.xaxis.set_major_locator(_locator)
     ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(
         _locator,
-        formats=["%Y", "%b%y", "%d%b%y", "%H:%M", "%H:%M", "%S.%f"],
+        formats=["%Y", "%-d%b%y", "%d%b%y", "%H:%M", "%H:%M", "%S.%f"],
         offset_formats=["", "", "", "", "", ""]))
+    ax.xaxis.set_minor_locator(mdates.DayLocator())
     fig.autofmt_xdate(rotation=45, ha="right")
 
     # Quiescent band + status from state file
