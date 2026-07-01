@@ -60,7 +60,7 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/de.agorion.tcrb.plist
 ## Zwei Hinweise
 
 - Die Plist löst stündlich zur vollen Stunde aus, rund um die Uhr – sinnvoll, weil Ausbruchsmeldungen weltweit zu jeder Zeit eintreffen und T CrB nach dem Höhepunkt schnell verblasst. Wenn das zu häufig ist, kann `StartCalendarInterval` als Array bestimmter Stunden angegeben werden (z. B. nur 6, 12, 18, 22 Uhr).
-- Die macOS-Benachrichtigung über `osascript` läuft vom LaunchAgent innerhalb der GUI-Session und erscheint normalerweise ohne Probleme; beim ersten Start muss ggf. unter Systemeinstellungen → Mitteilungen eine Berechtigung erteilt werden. Falls Benachrichtigungen unzuverlässig wirken, ist Signal der robustere Kanal – jede Stunde zählt bei einem Ausbruch.
+- Die macOS-Benachrichtigung über `osascript` läuft vom LaunchAgent innerhalb der GUI-Session und erscheint normalerweise ohne Probleme; beim ersten Start muss ggf. unter Systemeinstellungen → Mitteilungen eine Berechtigung erteilt werden. Falls Benachrichtigungen unzuverlässig wirken, ist Signal der robustere Kanal – bei einem Ausbruch zählt jede Stunde.
 
 ## Signal-Alarme
 
@@ -139,7 +139,7 @@ python3 -m venv .venv
 
 ## Differenzielle Photometrie (eigene Aufnahmen)
 
-Der primäre Photometrie-Workflow verwendet das [pi-aavso-photometry](https://github.com/beschne/pi-aavso-photometry)-PixInsight-Skript: einen plattengelösten Stack laden, Vergleichssterne und Zielobjekt anklicken, den AAVSO-Bericht direkt aus PixInsight exportieren. Kein separater Skriptschritt nötig.
+Der primäre Photometrie-Workflow verwendet das [pi-aavso-photometry](https://github.com/beschne/pi-aavso-photometry)-PixInsight-Skript: einen Stack mit astrometrischer Lösung laden, Vergleichssterne und Zielobjekt anklicken, den AAVSO-Bericht direkt aus PixInsight exportieren. Kein separater Skriptschritt nötig.
 
 Die Python-Skripte in [`photometry/`](photometry/README.md) sind Legacy-Alternativen, die als Querprüfung erhalten bleiben (Details in diesem README).
 
@@ -152,4 +152,4 @@ Siehe [docs/FINDER_CHART.md](docs/FINDER_CHART.md) – AAVSO-Karte X42597QE (1°
 - [T CrB aktuell – TheSkyLive](https://theskylive.com/sky/stars/hr-5958-star) — aktuelle Helligkeit und Informationen zu T Coronae Borealis
 - [AAVSO Photometry Database Search](https://apps.aavso.org/v2/data/search/photometry/) — Rohdaten aller AAVSO-Beobachtungen durchsuchen
 - [Meine AAVSO-Beobachtungen (BSLA)](https://apps.aavso.org/v2/data/search/user/?observer=BSLA) — eigene eingereichte Beobachtungen, einschließlich der mit den Skripten in [`photometry/`](photometry/README.md) erzeugten. Erfordert einen kostenlosen AAVSO-Account (eingeloggt).
-- [pi-aavso-photometry](https://github.com/beschne/pi-aavso-photometry) — PixInsight-Skript für Differenzphotometrie und direkten AAVSO-Berichtsexport aus plattengelösten Stacks.
+- [pi-aavso-photometry](https://github.com/beschne/pi-aavso-photometry) — PixInsight-Skript für Differenzphotometrie und direkten AAVSO-Berichtsexport aus Stacks mit astrometrischer Lösung.
