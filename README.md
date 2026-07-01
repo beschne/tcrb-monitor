@@ -137,7 +137,9 @@ python3 -m venv .venv
 
 ## Differential photometry (own imaging)
 
-See [`photometry/README.md`](photometry/README.md).
+The primary photometry workflow uses the [pi-aavso-photometry](https://github.com/beschne/pi-aavso-photometry) PixInsight script: load a plate-solved stack, click comparison stars and target, export the AAVSO report directly from PixInsight. No separate scripting step needed.
+
+The Python scripts in [`photometry/`](photometry/README.md) are legacy alternatives kept as cross-checks (see that README for details).
 
 ## Finder chart
 
@@ -148,3 +150,4 @@ See [docs/FINDER_CHART.md](docs/FINDER_CHART.md) — AAVSO chart X42597QE (1° F
 - [T CrB current – TheSkyLive](https://theskylive.com/sky/stars/hr-5958-star) — live brightness and current information on T Coronae Borealis
 - [AAVSO Photometry Database Search](https://apps.aavso.org/v2/data/search/photometry/) — search raw data from all AAVSO observations
 - [My AAVSO observations (BSLA)](https://apps.aavso.org/v2/data/search/user/?observer=BSLA) — own submitted observations, including those produced by the scripts in [`photometry/`](photometry/README.md). Requires a free AAVSO account (logged in) to view.
+- [pi-aavso-photometry](https://github.com/beschne/pi-aavso-photometry) — PixInsight script for differential photometry and direct AAVSO report export from plate-solved stacks.

@@ -1,6 +1,6 @@
 # photometry/
 
-Legacy Python differential-photometry scripts for T CrB. Both are superseded by the dedicated PixInsight photometry script but are kept as valuable, still-usable artifacts and cross-checks. Neither is part of the automated alert path.
+Legacy Python differential-photometry scripts for T CrB. Both are superseded by the [pi-aavso-photometry](https://github.com/beschne/pi-aavso-photometry) PixInsight script but are kept as valuable, still-usable artifacts and cross-checks. Neither is part of the automated alert path.
 
 Both have been validated against 30-minute stacks from a ZWO Seestar S30 Pro, demonstrating that compact smart telescopes of this class are capable of producing scientifically useful differential photometry.
 
