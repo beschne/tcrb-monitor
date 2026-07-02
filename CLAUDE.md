@@ -138,6 +138,16 @@ signal-cli -u +49NUMMER listGroups         # get base64 group ID for SIGNAL_GROU
 
 Configure `SIGNAL_ENABLED`, `SIGNAL_CLI`, `SIGNAL_ACCOUNT`, and either `SIGNAL_GROUP_ID` or `SIGNAL_RECIPIENTS` at the top of `tcrb_monitor.py`.
 
+## Updating the sample plot
+
+When replacing `tcrb_lightcurve.sample.png`, always use `--observer BSLA`. After copying the new PNG, also bump the cache-busting query string in both READMEs to force GitHub's Camo CDN to re-fetch:
+
+```
+<img src="tcrb_lightcurve.sample.png?v=YYYYMMDD">
+```
+
+Update the `<img src="tcrb_lightcurve.sample.png...">` tag in both `README.md` and `README.de.md`.
+
 ## Git
 
 Do not add co-author lines or any mention of Claude in commits, commit messages, or files.

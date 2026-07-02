@@ -30,6 +30,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+def _err(msg):
+    print(f"[{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}", file=sys.stderr)
+
 # --------------------------------------------------------------------------
 # CONFIGURATION  (can be fully overridden via command line/ENV)
 # --------------------------------------------------------------------------
@@ -77,7 +80,7 @@ try:
     SIGNAL_RECIPIENTS = getattr(_cfg, "SIGNAL_RECIPIENTS", SIGNAL_RECIPIENTS)
 except ImportError:
     if SIGNAL_ENABLED:
-        print("Note: tcrb_monitor_config.py missing – Signal disabled.", file=sys.stderr)
+        _err("Note: tcrb_monitor_config.py missing – Signal disabled.")
     SIGNAL_ENABLED = False
 
 # AAVSO WebObs URL and User-Agent
@@ -88,7 +91,9 @@ USER_AGENT = "AGO-TCrB-Monitor/1.3 (Volkssternwarte Hochtaunus)"
 # Fetch + Parse
 # --------------------------------------------------------------------------
 def fetch_observations(star=STAR, num=NUM_RESULTS, obs_types=OBS_TYPES):
-    """Returns a list of dicts: jd, date, mag, band, observer, fainter_than."""
+    """Returns (obs, error_kind) where obs is a list of dicts and error_kind is
+    None on success, 'http' for network/server errors, or 'parse' for unexpected
+    page structure."""
     # obs_types uses '+' as separator -> do NOT encode as %2B.
     qs = (f"star={urllib.parse.quote_plus(star)}"
           f"&num_results={int(num)}"
@@ -99,13 +104,13 @@ def fetch_observations(star=STAR, num=NUM_RESULTS, obs_types=OBS_TYPES):
         with urllib.request.urlopen(req, timeout=45) as r:
             page = r.read().decode("utf-8", errors="replace")
     except (urllib.error.URLError, OSError) as e:
-        print(f"AAVSO fetch failed: {e}", file=sys.stderr)
-        return []
+        _err(f"AAVSO fetch failed: {e}")
+        return [], "http"
 
     idx = page.find("Calendar Date")
     if idx < 0:
-        print("AAVSO page structure changed: anchor 'Calendar Date' missing.", file=sys.stderr)
-        return []
+        _err("AAVSO page structure changed: anchor 'Calendar Date' missing.")
+        return [], "parse"
     seg = page[idx:]
     rows = re.findall(r"<tr[^>]*>(.*?)</tr>", seg, re.S)
 
@@ -133,7 +138,7 @@ def fetch_observations(star=STAR, num=NUM_RESULTS, obs_types=OBS_TYPES):
             "jd": jd, "date": date_raw, "mag": mag,
             "band": band, "observer": observer, "fainter_than": fainter,
         })
-    return obs
+    return obs, None
 
 def _txt(cell):
     """HTML cell -> clean text (strip tags, unescape entities)."""
@@ -178,7 +183,7 @@ def load_state(path=STATE_PATH):
             with open(path, encoding="utf-8") as f:
                 return json.load(f)
         except (json.JSONDecodeError, OSError):
-            print(f"Warning: {path} unreadable, resetting state.", file=sys.stderr)
+            _err(f"Warning: {path} unreadable, resetting state.")
     return {"level": "quiescent", "last_jd": 0.0}
 
 def save_state(state, path=STATE_PATH):
@@ -223,19 +228,17 @@ def send_signal(text):
     else:
         targets = list(SIGNAL_RECIPIENTS)
     if not targets:
-        print("Signal: no target configured -- skipped.", file=sys.stderr)
+        _err("Signal: no target configured -- skipped.")
         return
     cmd = [SIGNAL_CLI, "-u", SIGNAL_ACCOUNT, "send", "-m", text, "--"] + targets
     try:
         res = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if res.returncode != 0:
-            print(f"Signal send failed (rc={res.returncode}): "
-                  f"{res.stderr.strip()}", file=sys.stderr)
+            _err(f"Signal send failed (rc={res.returncode}): {res.stderr.strip()}")
     except FileNotFoundError:
-        print(f"Signal: '{SIGNAL_CLI}' not found -- check path.",
-              file=sys.stderr)
+        _err(f"Signal: '{SIGNAL_CLI}' not found -- check path.")
     except subprocess.TimeoutExpired:
-        print("Signal: timeout while sending.", file=sys.stderr)
+        _err("Signal: timeout while sending.")
 
 def recent_context(obs, bands=ALERT_BANDS, window_days=1.0, max_points=5):
     """Short trend block for the alert message: range and rate of change of
@@ -287,10 +290,14 @@ def alert(level, obs, brightest):
 # Main
 # --------------------------------------------------------------------------
 def run(warn_mag, erupt_mag, dry_run=False):
-    obs = fetch_observations()
+    obs, fetch_err = fetch_observations()
     if not obs:
-        print("No observations received -- endpoint structure may have changed?",
-              file=sys.stderr)
+        if fetch_err == "http":
+            _err("No observations received -- transient server error, will retry next run.")
+        elif fetch_err == "parse":
+            _err("No observations received -- page structure may have changed, check script.")
+        else:
+            _err("No observations received -- possibly no recent data or unexpected structure.")
         return 2
 
     n_new = 0 if dry_run else append_csv(obs)
