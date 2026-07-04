@@ -113,7 +113,7 @@ python3 -m venv .venv
 
 Der Plotter liest den Produktions-CSV-Pfad aus `de.agorion.tcrb.plist` (`WorkingDirectory`), falls die Plist vorhanden ist – andernfalls aus dem Skriptverzeichnis. Wenn `asassn_history.csv` Daten enthält, wird die ASAS-SN g-Band-Serie automatisch als vierte Reihe überlagert (siehe unten); Titel und Legende werden entsprechend aktualisiert.
 
-<img src="tcrb_lightcurve.sample.png">
+<img src="tcrb_lightcurve.sample.png?v=20260704">
 
 ## ASAS-SN-Referenzdaten
 
