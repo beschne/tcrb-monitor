@@ -109,10 +109,13 @@ def main():
     for b in PLOT_BANDS:
         print(f"  {b}: {len(series[b]['m'])} points")
     if observer:
-        total = sum(len(observer_data[b]["m"]) for b in PLOT_BANDS)
-        print(f"  {observer} (highlighted): {total} points")
+        tg_n = len(observer_data["TG"]["m"])
+        tb_n = len(observer_data["TB"]["m"])
+        total = tg_n + tb_n
         if total == 0:
             print(f"  warning: observer '{observer}' not found in CSV — check the observer code.")
+        else:
+            print(f"  {observer} (highlighted): {total} points (TG: {tg_n}, TB: {tb_n})")
 
     # --- Read ASAS-SN CSV if present ---
     asassn = {"t": [], "m": []}
