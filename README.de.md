@@ -115,6 +115,20 @@ Der Plotter liest den Produktions-CSV-Pfad aus `de.agorion.tcrb.plist` (`Working
 
 <img src="tcrb_lightcurve.sample.png?v=20260710">
 
+### Lichtkurve mit Fehlerbalken für einen Beobachter
+
+`plot_tcrb_aavso.py` holt TG/TB-Beobachtungen live von AAVSO WebObs für einen einzelnen Beobachter – nicht aus `tcrb_history.csv`, da diese CSV keine Messunsicherheiten pro Beobachtung speichert. Die Punkte werden mit Fehlerbalken gegen JD geplottet; der Titel zeigt den abgedeckten UT-Zeitraum.
+
+Bei sehr aktiven automatisierten Beobachtern können das Tausende Rohpunkte sein – das Skript weigert sich dann, mehr als 200 Punkte zu plotten, und empfiehlt stattdessen einen engeren `--start`/`--end`-Zeitraum oder `--nightly-mean` (ein nach inverser Varianz gewichteter Punkt je Band und Beobachtungsnacht, Fehlerbalken = Streuung dieser Nacht). `--force` übergeht die Prüfung unverändert; `--complete` erzwingt den vollständigen Rohdatensatz statt des nächtlichen Mittels.
+
+```bash
+.venv/bin/python plot_tcrb_aavso.py --observer BSLA
+.venv/bin/python plot_tcrb_aavso.py --observer BSLA --start 2026-07-01 --end 2026-07-23 --out mycurve.png
+
+# Sehr aktiver Beobachter: pro Nacht mitteln statt Tausende Rohpunkte zu plotten
+.venv/bin/python plot_tcrb_aavso.py --observer MHOC --start 2026-06-05 --nightly-mean
+```
+
 ## ASAS-SN-Referenzdaten
 
 Der ASAS-SN-Fetcher (`asassn_fetch.py`) ist ein tägliches Begleitskript, das die T-CrB-Lichtkurve vom [ASAS-SN Sky Patrol](https://asas-sn.ifa.hawaii.edu/skypatrol/) abruft und neue Beobachtungen an `asassn_history.csv` anhängt. Die CSV verwendet dasselbe Spaltenlayout wie `tcrb_history.csv`, sodass `plot_tcrb_csv.py` beide Reihen zum Vergleich überlagern kann.

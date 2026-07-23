@@ -115,6 +115,20 @@ The plotter reads the production CSV path from `de.agorion.tcrb.plist` (`Working
 
 <img src="tcrb_lightcurve.sample.png?v=20260710">
 
+### Error-bar light curve for one observer
+
+`plot_tcrb_aavso.py` fetches TG/TB observations live from AAVSO WebObs for a single observer — not from `tcrb_history.csv`, since that CSV doesn't store per-observation magnitude uncertainty. Points are plotted with error bars against JD; the title shows the UT time range covered.
+
+For high-cadence automated observers this can mean thousands of raw points — the script refuses to plot more than 200 and instead recommends a narrower `--start`/`--end` or `--nightly-mean` (one inverse-variance-weighted point per band per observing night, error bar = that night's scatter). `--force` overrides the check as-is; `--complete` forces the full raw dataset instead of the nightly mean.
+
+```bash
+.venv/bin/python plot_tcrb_aavso.py --observer BSLA
+.venv/bin/python plot_tcrb_aavso.py --observer BSLA --start 2026-07-01 --end 2026-07-23 --out mycurve.png
+
+# High-cadence observer: average per night instead of plotting thousands of raw points
+.venv/bin/python plot_tcrb_aavso.py --observer MHOC --start 2026-06-05 --nightly-mean
+```
+
 ## ASAS-SN reference data
 
 The ASAS-SN fetcher (`asassn_fetch.py`) is a daily companion script that pulls the T CrB light curve from the [ASAS-SN Sky Patrol](https://asas-sn.ifa.hawaii.edu/skypatrol/) and appends new observations to `asassn_history.csv`. The CSV uses the same column layout as `tcrb_history.csv`, so `plot_tcrb_csv.py` can overlay both series for comparison.
