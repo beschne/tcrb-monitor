@@ -3,7 +3,7 @@
 """
 tcrb_monitor.py  --  Brightness monitor for T CrB ("Blaze Star")
 
-Fetches the latest observations from the AAVSO WebObs database, writes them
+Fetches the latest observations from the AAVSO VSX database, writes them
 to a local CSV history, and raises an alert when brightness crosses a
 configurable threshold (star gets brighter -> smaller mag number).
 
@@ -11,7 +11,7 @@ Standard library only -- no external packages needed. Tested with Python 3.9+.
 
 Intended for daily (or hourly) invocation via cron/launchd.
 
-Source:  https://www.aavso.org/apps/webobs/results/   (public, no login)
+Source:  https://vsx.aavso.org/index.php?view=api.delim   (public, no login)
 AUID T CrB: 000-BBW-825
 
 This is version 2 without email delivery. Alerts sent via Signal instead.
@@ -20,10 +20,8 @@ This is version 2 without email delivery. Alerts sent via Signal instead.
 import argparse
 import csv
 import datetime as dt
-import html as ihtml
 import json
 import os
-import re
 import subprocess
 import sys
 import urllib.error
@@ -37,8 +35,10 @@ def _err(msg):
 # CONFIGURATION  (can be fully overridden via command line/ENV)
 # --------------------------------------------------------------------------
 STAR          = "T CrB"
-NUM_RESULTS   = 200          # how many recent observations to fetch
-OBS_TYPES     = "vis+ccd"    # visual + CCD/CMOS observations
+LOOKBACK_DAYS = 5            # re-request this many trailing days on every run
+                              # (VSX has no "latest N observations" mode; a
+                              # generous rolling window also catches
+                              # observations submitted late by observers)
 
 # Alert thresholds (mag). Brighter = smaller number. T CrB quiescent at ~10.
 WARN_MAG      = 8.0          # early warning: unusually bright, keep an eye on it
@@ -83,66 +83,116 @@ except ImportError:
         _err("Note: tcrb_monitor_config.py missing – Signal disabled.")
     SIGNAL_ENABLED = False
 
-# AAVSO WebObs URL and User-Agent
-WEBOBS_URL = "https://www.aavso.org/apps/webobs/results/"
+# AAVSO VSX delimited-data API and User-Agent.
+# (AAVSO retired the old server-rendered WebObs HTML table in Sep 2026 in
+# favor of a JS single-page app; its own light-curve tool pulls raw data
+# from this VSX endpoint, which returns a header row plus one row per
+# observation, fields separated by DELIMITER.)
+VSX_URL    = "https://vsx.aavso.org/index.php"
+DELIMITER  = "@@@"
 USER_AGENT = "AGO-TCrB-Monitor/1.3 (Volkssternwarte Hochtaunus)"
+
+_MONTH_ABBR = ["Jan.", "Feb.", "Mar.", "Apr.", "May", "Jun.",
+               "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."]
 
 # --------------------------------------------------------------------------
 # Fetch + Parse
 # --------------------------------------------------------------------------
-def fetch_observations(star=STAR, num=NUM_RESULTS, obs_types=OBS_TYPES):
+def _jd_now():
+    """Current Julian Date (UT)."""
+    epoch = dt.datetime(1858, 11, 17, tzinfo=dt.timezone.utc)
+    return (dt.datetime.now(dt.timezone.utc) - epoch).total_seconds() / 86400 + 2400000.5
+
+def jd_to_calendar(jd):
+    """Julian Date -> AAVSO-style calendar string, e.g. '2026 Jun. 14.45764'."""
+    jd2 = jd + 0.5
+    z = int(jd2)
+    f = jd2 - z
+    if z < 2299161:
+        a = z
+    else:
+        alpha = int((z - 1867216.25) / 36524.25)
+        a = z + 1 + alpha - alpha // 4
+    b = a + 1524
+    c = int((b - 122.1) / 365.25)
+    d = int(365.25 * c)
+    e = int((b - d) / 30.6001)
+    day_frac = b - d - int(30.6001 * e) + f
+    month = e - 1 if e < 14 else e - 13
+    year = c - 4716 if month > 2 else c - 4715
+    return f"{year} {_MONTH_ABBR[month - 1]} {day_frac:08.5f}"
+
+def fetch_observations(star=STAR, lookback_days=LOOKBACK_DAYS, fromjd=None, tojd=None):
     """Returns (obs, error_kind) where obs is a list of dicts and error_kind is
     None on success, 'http' for network/server errors, or 'parse' for unexpected
-    page structure."""
-    # obs_types uses '+' as separator -> do NOT encode as %2B.
-    qs = (f"star={urllib.parse.quote_plus(star)}"
-          f"&num_results={int(num)}"
-          f"&obs_types={obs_types}")
-    url = WEBOBS_URL + "?" + qs
+    response structure.
+
+    By default requests the trailing `lookback_days` window. Pass explicit
+    `fromjd`/`tojd` instead to backfill an arbitrary historical range (e.g.
+    to fill a gap left by a launchd/network outage) -- VSX has no "latest N
+    observations" mode, so any specific period has to be requested by date."""
+    jd_now = _jd_now()
+    if fromjd is None:
+        fromjd = jd_now - lookback_days
+    if tojd is None:
+        tojd = jd_now + 0.5
+    qs = urllib.parse.urlencode({
+        "view": "api.delim",
+        "ident": star,
+        "fromjd": f"{fromjd:.5f}",
+        "tojd": f"{tojd:.5f}",
+        "delimiter": DELIMITER,
+    })
+    url = VSX_URL + "?" + qs
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
         with urllib.request.urlopen(req, timeout=45) as r:
-            page = r.read().decode("utf-8", errors="replace")
+            text = r.read().decode("utf-8", errors="replace")
     except (urllib.error.URLError, OSError) as e:
         _err(f"AAVSO fetch failed: {e}")
         return [], "http"
 
-    idx = page.find("Calendar Date")
-    if idx < 0:
-        _err("AAVSO page structure changed: anchor 'Calendar Date' missing.")
-        return [], "parse"
-    seg = page[idx:]
-    rows = re.findall(r"<tr[^>]*>(.*?)</tr>", seg, re.S)
+    if text[:200].find("DB Error") != -1:
+        _err("AAVSO VSX API returned a database error.")
+        return [], "http"
 
+    lines = text.strip("\r\n").split("\n")
+    if not lines or not lines[0].startswith(f"JD{DELIMITER}"):
+        _err("AAVSO VSX API structure changed: header row missing/unexpected.")
+        return [], "parse"
+
+    header = lines[0].split(DELIMITER)
+    try:
+        cols = {name: header.index(name)
+                for name in ("JD", "mag", "band", "by", "fainterThan", "starName")}
+    except ValueError:
+        _err("AAVSO VSX API structure changed: expected column missing.")
+        return [], "parse"
+
+    star_key = star.replace(" ", "").lower()
     obs = []
-    for tr in rows:
-        if star.replace(" ", "").lower() not in tr.replace(" ", "").lower():
+    for line in lines[1:]:
+        if not line.strip():
             continue
-        tds = re.findall(r"<td[^>]*>(.*?)</td>", tr, re.S)
-        if len(tds) < 7:
+        fields = line.split(DELIMITER)
+        if len(fields) <= max(cols.values()):
+            continue
+        if fields[cols["starName"]].replace(" ", "").lower() != star_key:
             continue
         try:
-            jd_raw   = _txt(tds[2])
-            date_raw = _txt(tds[3])
-            mag_raw  = _txt(tds[4])      # visible link text = magnitude
-            band     = _txt(tds[6])
-            observer = _txt(tds[7]) if len(tds) > 7 else ""
-
-            fainter = mag_raw.startswith("<")        # "<13.5" = fainter than
-            mag_clean = mag_raw.lstrip("<>").strip()
-            mag = float(mag_clean)
-            jd  = float(jd_raw)
-        except (ValueError, IndexError):
+            jd  = float(fields[cols["JD"]])
+            mag = float(fields[cols["mag"]])
+        except ValueError:
             continue
         obs.append({
-            "jd": jd, "date": date_raw, "mag": mag,
-            "band": band, "observer": observer, "fainter_than": fainter,
+            "jd": jd,
+            "date": jd_to_calendar(jd),
+            "mag": mag,
+            "band": fields[cols["band"]].strip(),
+            "observer": fields[cols["by"]].strip(),
+            "fainter_than": fields[cols["fainterThan"]].strip() == "1",
         })
     return obs, None
-
-def _txt(cell):
-    """HTML cell -> clean text (strip tags, unescape entities)."""
-    return ihtml.unescape(re.sub(r"<.*?>", "", cell, flags=re.S)).strip()
 
 # --------------------------------------------------------------------------
 # Evaluation

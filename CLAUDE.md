@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this project does
 
-Monitors T Coronae Borealis ("Blaze Star") for a nova eruption by polling AAVSO WebObs hourly. When brightness crosses configurable thresholds it sends a macOS notification and/or a Signal message. A local CSV accumulates all observations; a JSON file tracks the current alert level to prevent duplicate alerts.
+Monitors T Coronae Borealis ("Blaze Star") for a nova eruption by polling AAVSO hourly. When brightness crosses configurable thresholds it sends a macOS notification and/or a Signal message. A local CSV accumulates all observations; a JSON file tracks the current alert level to prevent duplicate alerts.
 
 ## Scripts
 
@@ -13,7 +13,7 @@ Monitors T Coronae Borealis ("Blaze Star") for a nova eruption by polling AAVSO 
 | `tcrb_monitor.py` | **Current version.** Standard library only (Python 3.9+). Alerts via macOS notification + Signal. |
 | `asassn_fetch.py` | ASAS-SN Sky Patrol fetcher. Analysis companion — **not** in the alert path. Writes `asassn_history.csv`. Requires `skypatrol` (`.venv/`). |
 | `plot_tcrb_csv.py` | Plots `tcrb_history.csv` → PNG. Bands: Vis. (yellow), V (orange), TG (green), TB (blue). `--observer CODE` highlights that observer's TG/TB points as pentagrams connected by a smooth PCHIP curve. Requires `matplotlib` + `scipy` (`.venv/`). |
-| `plot_tcrb_aavso.py` | Error-bar TG/TB light curve for one AAVSO observer, fetched live from WebObs (not the CSV, which lacks magnitude uncertainties). `--observer CODE` required; `--start`/`--end` (JD or YYYY-MM-DD) restrict the period; title shows the UT time range. Refuses to plot more than 200 points (recommends narrowing the period or `--nightly-mean`, which averages per observing night); override with `--force`, or `--complete` to force the full raw dataset instead of the average. Requires `matplotlib` (`.venv/`). |
+| `plot_tcrb_aavso.py` | Error-bar TG/TB light curve for one AAVSO observer, fetched live from the AAVSO VSX API (not the CSV, which lacks magnitude uncertainties). `--observer CODE` required; `--start`/`--end` (JD or YYYY-MM-DD) restrict the period, default is the trailing 365 days (`DEFAULT_LOOKBACK_DAYS`) since VSX has no "all-time" query; title shows the UT time range. Refuses to plot more than 200 points (recommends narrowing the period or `--nightly-mean`, which averages per observing night); override with `--force`, or `--complete` to force the full raw dataset instead of the average. Requires `matplotlib` (`.venv/`). |
 | `photometry/` | Legacy Python differential-photometry scripts — superseded by the PixInsight script but kept as cross-checks. See `photometry/CLAUDE.md`. |
 | `de.agorion.tcrb.plist` | launchd job — fires `tcrb_monitor.py` hourly from `~/Scripts/tcrb/`. |
 | `docs/FINDER_CHART.md` | AAVSO finder chart X42597QE (1° FOV) with V-band comparison star table. Reference only, not used by any script. Also in `docs/`: the chart image (`X42597QE.png`), its full photometry table (`X42597QE_photometry.csv`), `SECURITY_AUDIT.md`, and `PRIVATE_NOTES.md` (the latter two gitignored). |
@@ -48,7 +48,9 @@ python3 tcrb_monitor.py --test-alert
 
 ## Architecture
 
-`fetch_observations()` scrapes the AAVSO WebObs HTML table (no API key needed, AUID `000-BBW-825`). It returns dicts with `jd`, `mag`, `band`, `fainter_than`, etc.
+`fetch_observations()` queries the AAVSO VSX delimited-data API (`https://vsx.aavso.org/index.php?view=api.delim`), the same raw-data endpoint AAVSO's own Enhanced LCG light-curve tool uses. It requests a rolling `fromjd`/`tojd` window (`LOOKBACK_DAYS`, default 5) rather than "latest N observations" — VSX has no such mode — and re-requests the overlap on every hourly run so observations submitted late by observers still get picked up. It returns dicts with `jd`, `mag`, `band`, `fainter_than`, etc.
+
+**Note:** AAVSO retired the old server-rendered WebObs HTML results table (`www.aavso.org/apps/webobs/results/`) in Sep 2026 in favor of a JS single-page app; that URL now 404s/403s (Cloudflare bot challenge). `plot_tcrb_aavso.py` was migrated to the same VSX API for the same reason — see its row in the Scripts table above.
 
 `append_csv()` deduplicates by **(JD, band)** pair before appending to `tcrb_history.csv`. Keying on JD alone would silently drop same-session multi-filter observations (e.g. TG + TB taken at the same timestamp).
 
@@ -56,17 +58,17 @@ python3 tcrb_monitor.py --test-alert
 
 ## Backfilling historical AAVSO data
 
-The hourly monitor fetches only the latest 200 observations. To backfill further into the past, use the `page=N` pagination parameter on the WebObs endpoint (200 obs per page, newest first):
+The hourly monitor only re-requests the trailing `LOOKBACK_DAYS` window. To backfill further into the past, call the VSX API directly with a wide `fromjd`/`tojd` range (no pagination needed — it returns the whole range in one response):
 
 ```
-https://apps.aavso.org/webobs/results/?star=000-BBW-825&num_results=200&page=N
+https://vsx.aavso.org/index.php?view=api.delim&ident=T+CRB&fromjd=<start_jd>&tojd=<end_jd>&delimiter=@@@
 ```
 
 **Key notes:**
-- Use the AUID (`000-BBW-825`) rather than the star name in the URL for pagination.
-- The star name appears as `"T CRB"` (uppercase) in the HTML table — the row filter must be **case-insensitive** (`"tcrb" in tr.replace(" ", "").lower()`).
-- Each page covers roughly 0.2 days at current T CrB observation rates (~200 obs/day). Reaching June 14 from June 30 required ~89 pages.
-- `append_csv()` is idempotent — safe to re-merge pages already in the CSV.
+- `ident` takes the star name (`T CRB` / `T CrB`, case-insensitive) — no AUID needed.
+- Response is `@@@`-delimited text: a header row (`JD, mag, uncert, band, by, ...`) followed by one row per observation. `by` is the observer code (not `obsName`, which is the full name).
+- The `starName` column filter must be **case-insensitive** and space-insensitive (`fields[i].replace(" ", "").lower()`), matching `fetch_observations()`.
+- `append_csv()` is idempotent — safe to re-merge a backfill range that overlaps the existing CSV.
 - After a bulk merge, sort the CSV in place by JD (column 0) to restore chronological order:
 
 ```python

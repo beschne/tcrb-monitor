@@ -113,7 +113,7 @@ python3 -m venv .venv
 
 The plotter reads the production CSV path from `de.agorion.tcrb.plist` (`WorkingDirectory`) if the plist is present — otherwise from the script directory. When `asassn_history.csv` contains data, the ASAS-SN g-band series is overlaid automatically as a fourth series (see below); the title and legend update accordingly.
 
-<img src="tcrb_lightcurve.sample.png?v=20260710">
+<img src="tcrb_lightcurve.sample.png?v=20260930">
 
 ### Error-bar light curve for one observer
 

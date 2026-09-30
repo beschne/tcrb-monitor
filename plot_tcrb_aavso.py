@@ -2,14 +2,12 @@
 """
 T CrB - error-bar light curve for a single AAVSO observer (TG/TB bands only).
 
-Fetches live from AAVSO WebObs rather than tcrb_history.csv, because the CSV
-pipeline (tcrb_monitor.py) does not store the per-observation magnitude
-uncertainty ("Error" column on WebObs) -- only WebObs has it.
+Fetches live from the AAVSO VSX API rather than tcrb_history.csv, because the
+CSV pipeline (tcrb_monitor.py) does not store the per-observation magnitude
+uncertainty ("uncert" field) -- only the live API has it.
 """
 
 import argparse
-import html as ihtml
-import re
 import sys
 import urllib.error
 import urllib.parse
@@ -21,9 +19,11 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
 STAR = "000-BBW-825"  # T CrB AUID
-WEBOBS_URL = "https://www.aavso.org/apps/webobs/results/"
+VSX_URL = "https://vsx.aavso.org/index.php"
+DELIMITER = "@@@"
 USER_AGENT = "AGO-TCrB-Monitor/1.3 (Volkssternwarte Hochtaunus)"
 MAX_POINTS = 200  # sanity limit for a readable error-bar chart; see --force/--complete
+DEFAULT_LOOKBACK_DAYS = 365  # window used when --start is not given (VSX has no "all-time" query)
 
 # style per band: (marker, colour, label) -- matches plot_tcrb_csv.py
 STYLE = {
@@ -37,81 +37,91 @@ def jd_to_ut(jd):
     return datetime.fromtimestamp((jd - 2440587.5) * 86400, tz=timezone.utc)
 
 
-def _txt(cell):
-    """HTML cell -> clean text (strip tags, unescape entities)."""
-    return ihtml.unescape(re.sub(r"<.*?>", "", cell, flags=re.S)).strip()
+def _jd_now():
+    """Current Julian Date (UT)."""
+    return (datetime.now(timezone.utc) - datetime(1858, 11, 17, tzinfo=timezone.utc)).total_seconds() / 86400 + 2400000.5
 
 
-PAGE_SIZE = 200  # AAVSO WebObs hard cap on rows per page (see CLAUDE.md backfill notes)
+def _date_to_jd(year, month, day):
+    """Calendar date (UT midnight) -> Julian Date."""
+    if month <= 2:
+        year -= 1
+        month += 12
+    a = year // 100
+    b = 2 - a + a // 4
+    return int(365.25 * (year + 4716)) + int(30.6001 * (month + 1)) + day + b - 1524.5
 
 
-def _fetch_page(observer, star, start, end, page):
-    """Fetch one WebObs results page. Returns (obs, raw_row_count) where
-    raw_row_count is the number of real observation rows on the page
-    (before band/limit filtering) -- used to detect the last page."""
-    qs = {
-        "star": star,
-        "num_results": str(PAGE_SIZE),
-        "obs_types": "ccd",
-        "obscode": observer,
-        "page": str(page),
-    }
-    if start:
-        qs["start"] = start
-    if end:
-        qs["end"] = end
-    url = WEBOBS_URL + "?" + urllib.parse.urlencode(qs)
+def _parse_bound(value):
+    """--start/--end value (JD or YYYY-MM-DD) -> JD float."""
+    try:
+        return float(value)
+    except ValueError:
+        pass
+    try:
+        d = datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        sys.exit(f"Cannot parse date/JD: {value!r} (expected a JD number or YYYY-MM-DD).")
+    return _date_to_jd(d.year, d.month, d.day)
+
+
+def fetch_observations(observer, star=STAR, start=None, end=None):
+    """Fetch this observer's TG/TB-capable observations of `star` from the
+    AAVSO VSX delimited-data API, optionally restricted to [start, end]
+    (each JD or YYYY-MM-DD). Without --start, defaults to the trailing
+    DEFAULT_LOOKBACK_DAYS -- VSX has no "give me everything" query mode."""
+    jd_now = _jd_now()
+    fromjd = _parse_bound(start) if start else jd_now - DEFAULT_LOOKBACK_DAYS
+    tojd = _parse_bound(end) if end else jd_now + 0.5
+
+    qs = urllib.parse.urlencode({
+        "view": "api.delim",
+        "ident": star,
+        "fromjd": f"{fromjd:.5f}",
+        "tojd": f"{tojd:.5f}",
+        "delimiter": DELIMITER,
+    })
+    url = VSX_URL + "?" + qs
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
-        with urllib.request.urlopen(req, timeout=45) as r:
-            html_page = r.read().decode("utf-8", errors="replace")
+        with urllib.request.urlopen(req, timeout=60) as r:
+            text = r.read().decode("utf-8", errors="replace")
     except (urllib.error.URLError, OSError) as e:
         sys.exit(f"AAVSO fetch failed: {e}")
 
-    idx = html_page.find("Calendar Date")
-    if idx < 0:
-        sys.exit("AAVSO page structure changed: anchor 'Calendar Date' missing.")
-    rows = re.findall(r"<tr[^>]*>(.*?)</tr>", html_page[idx:], re.S)
+    if text[:200].find("DB Error") != -1:
+        sys.exit("AAVSO VSX API returned a database error.")
+
+    lines = text.strip("\r\n").split("\n")
+    if not lines or not lines[0].startswith(f"JD{DELIMITER}"):
+        sys.exit("AAVSO VSX API structure changed: header row missing/unexpected.")
+
+    header = lines[0].split(DELIMITER)
+    try:
+        cols = {name: header.index(name)
+                for name in ("JD", "mag", "uncert", "band", "by", "fainterThan")}
+    except ValueError:
+        sys.exit("AAVSO VSX API structure changed: expected column missing.")
 
     obs = []
-    raw_row_count = 0
-    for tr in rows:
-        tds = re.findall(r"<td[^>]*>(.*?)</td>", tr, re.S)
-        if len(tds) < 8:
+    for line in lines[1:]:
+        if not line.strip():
             continue
-        raw_row_count += 1
+        fields = line.split(DELIMITER)
+        if len(fields) <= max(cols.values()):
+            continue
+        if fields[cols["by"]].strip() != observer:
+            continue
+        if fields[cols["fainterThan"]].strip() == "1":
+            continue  # upper limit, not a real detection
         try:
-            jd = float(_txt(tds[2]))
-            mag_raw = _txt(tds[4])
-            if mag_raw.startswith("<"):
-                continue  # "fainter than" upper limit, not a real detection
-            mag = float(mag_raw)
-            err_raw = _txt(tds[5])
-            err = float(err_raw) if err_raw not in ("", "—") else None
-            band = _txt(tds[6])
-            obs_code = _txt(tds[7])
-        except (ValueError, IndexError):
+            jd = float(fields[cols["JD"]])
+            mag = float(fields[cols["mag"]])
+        except ValueError:
             continue
-        if obs_code != observer:
-            continue
-        obs.append({"jd": jd, "mag": mag, "err": err, "band": band})
-    return obs, raw_row_count
-
-
-def fetch_observations(observer, star=STAR, start=None, end=None, max_pages=200):
-    """Fetch all of this observer's CCD observations of `star` from AAVSO
-    WebObs, optionally restricted to [start, end] (each JD or YYYY-MM-DD).
-    Pages through results (200 rows/page, server-side hard cap) until the
-    last page is reached."""
-    obs = []
-    page = 1
-    while page <= max_pages:
-        page_obs, raw_row_count = _fetch_page(observer, star, start, end, page)
-        obs.extend(page_obs)
-        if raw_row_count < PAGE_SIZE:
-            break
-        print(f"  page {page}: {raw_row_count} rows (total so far: {len(obs)})")
-        page += 1
+        err_raw = fields[cols["uncert"]].strip()
+        err = float(err_raw) if err_raw not in ("", "—") else None
+        obs.append({"jd": jd, "mag": mag, "err": err, "band": fields[cols["band"]].strip()})
     return obs
 
 
@@ -148,10 +158,11 @@ def bin_nightly(obs):
 def main():
     ap = argparse.ArgumentParser(
         description="Error-bar T CrB light curve (TG/TB only) for one AAVSO "
-                     "observer, fetched live from WebObs.")
+                     "observer, fetched live from the AAVSO VSX API.")
     ap.add_argument("--observer", required=True, help="AAVSO observer code, e.g. BSLA")
-    ap.add_argument("--start", help="Start of period: JD or YYYY-MM-DD")
-    ap.add_argument("--end", help="End of period: JD or YYYY-MM-DD")
+    ap.add_argument("--start", help=f"Start of period: JD or YYYY-MM-DD "
+                     f"(default: {DEFAULT_LOOKBACK_DAYS} days ago)")
+    ap.add_argument("--end", help="End of period: JD or YYYY-MM-DD (default: now)")
     ap.add_argument("--out", help="Output PNG path (default: <observer>_lightcurve.png)")
     ap.add_argument("--nightly-mean", action="store_true",
                      help="Bin observations by night (one point per band per night: "
